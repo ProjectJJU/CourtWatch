@@ -377,7 +377,7 @@ def apply_callback(config: dict, state: dict, data: str) -> tuple[str, dict | No
         state["awaiting"] = f"url:{parts[1]}"
         watch = _watch(config, parts[1])
         return (
-            f"{watch.get('name')} 주소를 보내세요.\n{watch.get('url')}",
+            f"{watch.get('name')} 코트 번호만 보내세요.",
             address_keyboard(config),
             False,
             False,
@@ -437,7 +437,7 @@ def apply_text(config: dict, state: dict, text: str) -> tuple[str, dict | None, 
             current["name"] = f"코트 {court_id}"
             forget_courts(state, {old_id})
         state["awaiting"] = None
-        return f"주소를 저장했습니다.\n{url}", address_keyboard(config), True, False
+        return "주소를 저장했습니다.", address_keyboard(config), True, False
     if state.get("awaiting") == "sleep":
         match = SLEEP_TEXT_RE.fullmatch(stripped)
         if not match:

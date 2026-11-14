@@ -7,7 +7,6 @@ from zoneinfo import ZoneInfo
 from checker.config_store import load_config, save_config
 from checker.logic import (
     acknowledge,
-    alert_click,
     collect_alerts,
     failure_should_send,
     forget_courts,
@@ -112,7 +111,7 @@ class AlertTests(unittest.TestCase):
     def test_message_groups_courts(self):
         config = {
             "watches": [
-                {"id": 73, "name": "시민C", "url": "https://example.test/73"},
+                {"id": 73, "name": "시민C https://example.test/73", "url": "https://example.test/73"},
                 {"id": 47, "name": "3번", "url": "https://example.test/47"},
             ]
         }
@@ -128,7 +127,8 @@ class AlertTests(unittest.TestCase):
         self.assertIn("2026-11-20 (금) 18:00-20:00", text)
         self.assertLess(text.index("시민C"), text.index("3번"))
         self.assertTrue(text.endswith("먼저 예약될 수 있습니다"))
-        self.assertEqual(alert_click(config, ["47|2026-11-21|20:00-22:00"]), "https://example.test/47")
+        self.assertNotIn("http", text)
+        self.assertNotIn("example.test", text)
 
     def test_failure_is_once_until_recovery(self):
         state = fresh_state()

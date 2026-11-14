@@ -9,7 +9,6 @@ from checker.crawl import CrawlError, crawl_courts
 from checker.logic import (
     acknowledge,
     acknowledge_failure,
-    alert_click,
     collect_alerts,
     failure_should_send,
     is_muted,
@@ -60,14 +59,14 @@ def run() -> int:
             alerts = collect_alerts(state, observed, muted, now.date().isoformat())
             if alerts and not muted:
                 message = render_alert(config, alerts)
-                if send_ntfy(message, "빈 코트", alert_click(config, alerts), priority=5):
+                if send_ntfy(message, "빈 코트", priority=5):
                     acknowledge(state, alerts)
                 else:
                     exit_code = 1
                     print("alert delivery failed")
         except CrawlError as exc:
             state["last_error"] = "예약 화면을 읽지 못했습니다."
-            print(f"crawl failed: {exc}")
+            print("crawl failed")
             exit_code = 1
             if failure_should_send(state, muted):
                 if send_ntfy(FAILURE_TEXT, "코트 감시 실패", priority=4):

@@ -204,9 +204,11 @@ function renderCourts() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "court" + (index === state.selected ? " active" : "");
-    button.innerHTML = `<strong>${watch.name || "코트 " + watch.id}</strong><br><small>${
-      watch.enabled === false ? "꺼짐" : "켜짐"
-    } · ${cfgApi.formatWeekdays(watch.weekdays)}</small>`;
+    const title = document.createElement("strong");
+    title.textContent = watch.name || "코트 " + watch.id;
+    const detail = document.createElement("small");
+    detail.textContent = `${watch.enabled === false ? "꺼짐" : "켜짐"} · ${cfgApi.formatWeekdays(watch.weekdays)}`;
+    button.append(title, document.createElement("br"), detail);
     button.addEventListener("click", () => {
       state.selected = index;
       render();

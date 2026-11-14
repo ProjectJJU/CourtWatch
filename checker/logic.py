@@ -281,6 +281,13 @@ def format_weekdays(days: list[int]) -> str:
     return "".join(WEEKDAY_LABELS[day] for day in ordered if 0 <= day <= 6)
 
 
+_LINK_RE = re.compile(r"(?i)(?:https?://|www\.)\S+")
+
+
+def visible_text(value: object) -> str:
+    return " ".join(_LINK_RE.sub("", str(value or "")).split())
+
+
 def render_alert(config: dict, keys: list[str]) -> str:
     grouped: dict[str, list[tuple[str, str]]] = {}
     for key in dict.fromkeys(keys):
@@ -293,27 +300,13 @@ def render_alert(config: dict, keys: list[str]) -> str:
     for court_id in ordered:
         items = grouped[court_id]
         watch = watches.get(court_id, {})
-        lines.append(str(watch.get("name") or court_id))
+        lines.append(visible_text(watch.get("name")) or court_id)
         for day, slot in sorted(items):
             current = date.fromisoformat(day)
             lines.append(f"{day} ({format_weekday(current)}) {slot}")
-        if watch.get("url"):
-            lines.append(str(watch["url"]))
         lines.append("")
     lines.append("먼저 예약될 수 있습니다")
     return "\n".join(lines).strip()
-
-
-def alert_click(config: dict, keys: list[str]) -> str | None:
-    present = {split_key(key)[0] for key in keys}
-    for watch in config.get("watches", []):
-        if str(watch.get("id")) in present and watch.get("url"):
-            return str(watch["url"])
-    for court_id in present:
-        url = watch_by_id(config).get(court_id, {}).get("url")
-        if url:
-            return str(url)
-    return None
 
 
 def render_status(config: dict, state: dict) -> str:
@@ -338,10 +331,9 @@ def render_status(config: dict, state: dict) -> str:
         flag = "켜짐" if watch.get("enabled", True) else "꺼짐"
         slots = ", ".join(watch.get("slots") or []) or "없음"
         lines.append(
-            f"{watch.get('name')} [{flag}] {format_weekdays(watch.get('weekdays') or [])} {slots}"
+            f"{visible_text(watch.get('name')) or watch.get('id')} [{flag}] "
+            f"{format_weekdays(watch.get('weekdays') or [])} {slots}"
         )
-        if watch.get("url"):
-            lines.append(str(watch["url"]))
     lines.append("")
     open_now = state.get("open_now") or []
     if not open_now:
@@ -351,7 +343,7 @@ def render_status(config: dict, state: dict) -> str:
         watches = watch_by_id(config)
         for key in open_now:
             court_id, day, slot = split_key(key)
-            name = watches.get(court_id, {}).get("name", court_id)
+            name = visible_text(watches.get(court_id, {}).get("name")) or court_id
             current = date.fromisoformat(day)
             lines.append(f"{name} {day} ({format_weekday(current)}) {slot}")
     return "\n".join(lines)
