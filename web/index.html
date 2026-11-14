@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>빈 코트 설정</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <p class="eyebrow">Court Watch</p>
+      <h1>빈 코트 설정</h1>
+    </div>
+    <p id="message" class="message" role="status"></p>
+  </header>
+
+  <section class="card" id="link-card">
+    <h2>저장소 연결</h2>
+    <p class="hint">토큰과 ntfy 토픽은 이 브라우저에만 저장됩니다. 공개 저장소에는 올리지 마세요.</p>
+    <div class="grid">
+      <label>소유자<input id="owner" autocomplete="off"></label>
+      <label>저장소<input id="repo" autocomplete="off"></label>
+      <label>브랜치<input id="branch" value="main" autocomplete="off"></label>
+      <label>GitHub 토큰<input id="token" type="password" autocomplete="off" placeholder="contents 권한"></label>
+      <label>ntfy 토픽<input id="topic" autocomplete="off" placeholder="긴 임의 이름"></label>
+      <label>ntfy 서버<input id="server" value="https://ntfy.sh" autocomplete="off"></label>
+      <label>ntfy 토큰<input id="ntfy-token" type="password" autocomplete="off" placeholder="잠근 토픽만"></label>
+    </div>
+    <div class="row">
+      <button type="button" id="load-button">불러오기</button>
+      <button type="button" id="test-button" class="secondary">알림 테스트</button>
+    </div>
+  </section>
+
+  <section class="card" id="status-card">
+    <h2>현황</h2>
+    <div id="status" class="status">설정을 불러오면 최근 검사가 표시됩니다.</div>
+  </section>
+
+  <section class="card" id="general-card" hidden>
+    <h2>알림과 수면</h2>
+    <div class="row">
+      <button type="button" id="alert-toggle" class="toggle"></button>
+      <button type="button" data-days="7">7일</button>
+      <button type="button" data-days="14">14일</button>
+    </div>
+    <div class="row" id="sleep-row">
+      <button type="button" data-sleep="00:00,00:00">수면 없음</button>
+      <button type="button" data-sleep="23:00,07:00">23:00–07:00</button>
+      <button type="button" data-sleep="00:00,08:00">00:00–08:00</button>
+    </div>
+    <div class="row">
+      <label>시작<input id="sleep-start" type="time"></label>
+      <label>끝<input id="sleep-end" type="time"></label>
+      <button type="button" id="sleep-apply">수면 적용</button>
+    </div>
+  </section>
+
+  <section class="card" id="court-card" hidden>
+    <div class="section-head">
+      <h2>코트</h2>
+      <div class="row add-row">
+        <input id="add-address" placeholder="번호 또는 예약 주소">
+        <button type="button" id="add-button">추가</button>
+      </div>
+    </div>
+    <div id="court-list" class="court-list"></div>
+    <div id="court-detail"></div>
+  </section>
+
+  <div class="savebar" id="savebar" hidden>
+    <button type="button" id="save-button" class="primary">저장</button>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

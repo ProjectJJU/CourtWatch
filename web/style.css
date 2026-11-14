@@ -1,0 +1,148 @@
+:root {
+  color: #1c2416;
+  background: #f3f1e8;
+  font-family: "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+  line-height: 1.45;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0 auto;
+  max-width: 880px;
+  padding: 24px 16px 96px;
+}
+
+h1, h2, p { margin: 0; }
+
+h1 { font-size: 1.8rem; }
+
+h2 { font-size: 1.15rem; }
+
+.eyebrow {
+  color: #5d6b4a;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.message {
+  min-height: 1.4em;
+  color: #3d4a32;
+  text-align: right;
+}
+
+.card {
+  background: #fffdf8;
+  border: 1px solid #ddd6c6;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.hint, .status, .muted {
+  color: #5c564c;
+  font-size: 0.92rem;
+}
+
+.status { white-space: pre-wrap; margin-top: 8px; }
+
+.grid, .row, .court-list, .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.grid { margin: 12px 0; }
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  min-width: 140px;
+  flex: 1;
+}
+
+input, button {
+  font: inherit;
+}
+
+input {
+  border: 1px solid #cfc6b4;
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+button {
+  border: 1px solid #c9c1af;
+  background: #fff;
+  border-radius: 999px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+button.active, button.primary, button.toggle.on {
+  background: #2f6b45;
+  border-color: #2f6b45;
+  color: #fff;
+}
+
+button.secondary { background: #efe8d8; }
+
+button.danger { color: #8d2d2d; }
+
+.section-head, .court-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.court {
+  border: 1px solid #e4dccb;
+  border-radius: 14px;
+  padding: 12px;
+  min-width: 180px;
+  background: #fff;
+  text-align: left;
+}
+
+.court small, .detail p { color: #655e54; }
+
+.detail {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee6d6;
+}
+
+.savebar[hidden] { display: none; }
+
+.savebar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(243, 241, 232, 0.94);
+  border-top: 1px solid #ddd6c6;
+}
+
+.savebar .primary { min-width: 180px; }
+
+@media (max-width: 700px) {
+  .top, .section-head { display: block; }
+  .message { text-align: left; margin-top: 8px; }
+}
