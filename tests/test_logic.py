@@ -68,6 +68,9 @@ class AlertTests(unittest.TestCase):
         state["initialized"] = True
         key = "73|2026-11-20|18:00-20:00"
         sent = collect_alerts(state, {key: True}, False, "2026-11-14")
+        self.assertEqual(sent, [])
+        state["slots"][key] = False
+        sent = collect_alerts(state, {key: True}, False, "2026-11-14")
         self.assertEqual(sent, [key])
         acknowledge(state, sent)
         sent = collect_alerts(state, {key: True}, False, "2026-11-14")
@@ -80,6 +83,7 @@ class AlertTests(unittest.TestCase):
         state = fresh_state()
         state["initialized"] = True
         key = "73|2026-11-20|18:00-20:00"
+        state["slots"][key] = False
         sent = collect_alerts(state, {key: True}, True, "2026-11-14")
         self.assertEqual(sent, [])
         self.assertIn(key, state["pending"])
@@ -103,6 +107,7 @@ class AlertTests(unittest.TestCase):
         state = fresh_state()
         state["initialized"] = True
         key = "73|2026-11-20|18:00-20:00"
+        state["slots"][key] = False
         sent = collect_alerts(state, {key: True}, False, "2026-11-14")
         self.assertEqual(sent, [key])
         sent_again = collect_alerts(state, {key: True}, False, "2026-11-14")

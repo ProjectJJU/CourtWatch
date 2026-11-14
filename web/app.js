@@ -204,9 +204,6 @@ function renderGeneral() {
   const on = config.alerts_enabled !== false;
   alertButton.textContent = on ? "알림 켜짐" : "알림 꺼짐";
   alertButton.classList.toggle("on", on);
-  document.querySelectorAll("[data-days]").forEach((button) => {
-    button.classList.toggle("active", Number(button.dataset.days) === Number(config.lookahead_days));
-  });
   const sleep = config.sleep || {};
   const same = sleep.start && sleep.start === sleep.end;
   document.querySelector("#sleep-start").value = same ? "" : sleep.start || "";
@@ -406,13 +403,6 @@ document.querySelector("#alert-toggle").addEventListener("click", () => {
   if (!state.config) return;
   state.config.alerts_enabled = state.config.alerts_enabled === false;
   render();
-});
-document.querySelectorAll("[data-days]").forEach((button) => {
-  button.addEventListener("click", () => {
-    if (!state.config) return;
-    state.config.lookahead_days = Number(button.dataset.days);
-    render();
-  });
 });
 document.querySelectorAll("[data-sleep]").forEach((button) => {
   button.addEventListener("click", () => {

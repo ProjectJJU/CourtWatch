@@ -120,7 +120,7 @@
 
     const config = parseBlock(0);
     config.timezone = config.timezone || "Asia/Seoul";
-    config.lookahead_days = Number(config.lookahead_days || 14);
+    config.lookahead_days = 35;
     config.alerts_enabled = config.alerts_enabled !== false;
     config.sleep = config.sleep || { start: "02:00", end: "02:00" };
     config.presets = config.presets || [];
@@ -145,7 +145,7 @@
   function dumpConfig(config) {
     const lines = [
       `timezone: ${config.timezone || "Asia/Seoul"}`,
-      `lookahead_days: ${Number(config.lookahead_days || 14)}`,
+      `lookahead_days: 35`,
       `alerts_enabled: ${config.alerts_enabled === false ? "false" : "true"}`,
       "sleep:",
       `  start: ${quote((config.sleep || {}).start || "02:00")}`,

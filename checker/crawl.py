@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 from playwright.sync_api import sync_playwright
 
-from checker.logic import looks_grey, parse_event_titles
+from checker.logic import HORIZON_DAYS, looks_grey, parse_event_titles
 
 EXTRACT_JS = """
 () => {
@@ -92,8 +92,7 @@ def crawl_courts(config: dict, today: date) -> tuple[dict[str, dict], bool]:
     watches = [watch for watch in config.get("watches", []) if watch.get("enabled", True)]
     if not watches:
         return {}
-    lookahead = int(config.get("lookahead_days") or 14)
-    end = today + timedelta(days=lookahead - 1)
+    end = today + timedelta(days=HORIZON_DAYS - 1)
     calendars: dict[str, dict] = {}
     renamed = False
     with sync_playwright() as playwright:

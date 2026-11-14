@@ -1,5 +1,5 @@
 timezone: Asia/Seoul
-lookahead_days: 14
+lookahead_days: 35
 alerts_enabled: true
 sleep:
   start: "02:00"

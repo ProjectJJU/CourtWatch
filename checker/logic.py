@@ -5,6 +5,7 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"]
+HORIZON_DAYS = 35
 OCCUPIED_STATES = {"신청", "승인", "결제"}
 IGNORED_STATES = {"취소", "환불"}
 RANGE_RE = re.compile(r"(\d{2}:\d{2})\s*[~\-]\s*(\d{2}:\d{2})")
@@ -150,7 +151,7 @@ def watch_by_id(config: dict) -> dict[str, dict]:
 
 
 def observed_slots(config: dict, calendars: dict, today: date) -> dict[str, bool]:
-    lookahead = int(config.get("lookahead_days") or 14)
+    lookahead = HORIZON_DAYS
     observed: dict[str, bool] = {}
     for watch in config.get("watches", []):
         if not watch.get("enabled", True):
@@ -209,6 +210,9 @@ def collect_alerts(state: dict, observed: dict[str, bool], muted: bool, today_is
         return []
 
     for key, is_open in observed.items():
+        if key not in slots:
+            slots[key] = is_open
+            continue
         previous = bool(slots.get(key, False))
         if is_open and not previous:
             if muted:
@@ -322,7 +326,7 @@ def render_status(config: dict, state: dict) -> str:
     lines = [
         sleep_line,
         "알림: 켜짐" if config.get("alerts_enabled", True) else "알림: 꺼짐",
-        f"기간: {int(config.get('lookahead_days') or 14)}일",
+        f"기간: 오늘부터 {HORIZON_DAYS}일",
         f"마지막 검사: {state.get('last_check') or '없음'}",
     ]
     if state.get("last_error"):

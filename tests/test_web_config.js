@@ -7,7 +7,7 @@ const source = fs.readFileSync(path.join(__dirname, "..", "config.yaml"), "utf8"
 const config = configApi.parseConfig(source);
 assert.strictEqual(config.sleep.start, "02:00");
 assert.strictEqual(config.sleep.end, "06:00");
-assert.strictEqual(config.lookahead_days, 14);
+assert.strictEqual(config.lookahead_days, 35);
 assert.strictEqual(config.alerts_enabled, true);
 assert.strictEqual(config.watches.length, 5);
 assert.strictEqual(config.watches[0].id, 73);

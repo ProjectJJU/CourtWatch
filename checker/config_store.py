@@ -23,7 +23,7 @@ def load_config(path: Path) -> dict:
     with path.open(encoding="utf-8") as handle:
         data = yaml.safe_load(handle) or {}
     data.setdefault("timezone", "Asia/Seoul")
-    data.setdefault("lookahead_days", 14)
+    data.setdefault("lookahead_days", 35)
     data.setdefault("alerts_enabled", True)
     data.setdefault("sleep", {"start": "02:00", "end": "02:00"})
     data.setdefault("presets", [])
