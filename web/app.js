@@ -94,6 +94,7 @@ async function loadRepo() {
   }
   if (state.selected >= state.config.watches.length) state.selected = 0;
   render();
+  document.querySelector("#link-card").open = false;
   say("불러왔습니다.");
 }
 
@@ -153,29 +154,48 @@ async function testNtfy() {
   say(response.ok ? "테스트 알림을 보냈습니다." : "테스트 알림을 보내지 못했습니다.");
 }
 
+function plain(value) {
+  return String(value || "")
+    .replace(/(?:\[[^\]]+\]\([^)]+\)|<\s*https?:\/\/[^>]+>|https?:\/\/\S+|www\.\S+|javascript:\S+|data:\S+)/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function renderStatus() {
   const box = document.querySelector("#status");
+  box.replaceChildren();
   const current = state.status;
   if (!current) {
     box.textContent = "아직 검사 기록이 없습니다.";
     return;
   }
   const watches = Object.fromEntries((state.config.watches || []).map((watch) => [String(watch.id), watch]));
-  const lines = [
-    `마지막 검사: ${current.last_check || "없음"}`,
-    current.last_error ? `마지막 오류: ${current.last_error}` : "",
-  ].filter(Boolean);
-  const open = current.open_now || [];
-  if (!open.length) lines.push("지금 빈 슬롯 없음");
-  else {
-    lines.push("지금 빈 슬롯");
-    open.forEach((key) => {
-      const [id, day, slot] = key.split("|");
-      const name = (watches[id] || {}).name || id;
-      lines.push(`${name} ${day} ${slot}`);
-    });
+  const checked = document.createElement("p");
+  checked.className = "status-line";
+  checked.textContent = `마지막 검사 ${current.last_check || "없음"}`;
+  box.append(checked);
+  if (current.last_error) {
+    const error = document.createElement("p");
+    error.className = "status-line";
+    error.textContent = plain(current.last_error);
+    box.append(error);
   }
-  box.textContent = lines.join("\n");
+  const open = current.open_now || [];
+  const summary = document.createElement("p");
+  summary.className = "status-line";
+  summary.textContent = open.length ? `빈 시간 ${open.length}개` : "지금 빈 시간 없음";
+  box.append(summary);
+  if (!open.length) return;
+  const list = document.createElement("ul");
+  list.className = "status-list";
+  open.forEach((key) => {
+    const [id, day, slot] = key.split("|");
+    const item = document.createElement("li");
+    const name = plain((watches[id] || {}).name) || id;
+    item.textContent = `${name}  ${day}  ${slot}`;
+    list.append(item);
+  });
+  box.append(list);
 }
 
 function renderGeneral() {
@@ -203,9 +223,10 @@ function renderCourts() {
   state.config.watches.forEach((watch, index) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "court" + (index === state.selected ? " active" : "");
+    button.className = "court" + (index === state.selected ? " active" : "") + (watch.enabled === false ? " is-off" : "");
+    button.setAttribute("aria-pressed", index === state.selected ? "true" : "false");
     const title = document.createElement("strong");
-    title.textContent = watch.name || "코트 " + watch.id;
+    title.textContent = plain(watch.name) || "코트 " + watch.id;
     const detail = document.createElement("small");
     detail.textContent = `${watch.enabled === false ? "꺼짐" : "켜짐"} · ${cfgApi.formatWeekdays(watch.weekdays)}`;
     button.append(title, document.createElement("br"), detail);
@@ -240,21 +261,25 @@ function renderDetail() {
   detail.innerHTML = `
     <div class="grid">
       <label>이름<input data-field="name" value=""></label>
-      <label>주소<input data-field="url" value=""></label>
-      <label>시작<input data-field="open" type="time"></label>
-      <label>끝<input data-field="close" type="time"></label>
+      <label class="span-2">코트 번호<input data-field="url" value="" inputmode="text" autocomplete="off"></label>
+      <label>운영 시작<input data-field="open" type="time"></label>
+      <label>운영 끝<input data-field="close" type="time"></label>
     </div>
-    <div class="row" id="weekday-row"></div>
-    <div class="row" id="preset-row"></div>
+    <p class="group-label">요일</p>
+    <div class="row day-presets" id="day-presets"></div>
+    <div class="weekdays" id="weekday-row"></div>
+    <p class="group-label">빠른 선택</p>
+    <div class="row presets" id="preset-row"></div>
+    <p class="group-label">시간</p>
     <div class="chips" id="slot-row"></div>
     <div class="row">
       <button type="button" id="enabled-button"></button>
-      <button type="button" id="delete-button" class="danger">이 코트 삭제</button>
+      <button type="button" id="delete-button" class="danger">이 코트 빼기</button>
     </div>
   `;
   root.appendChild(detail);
   detail.querySelector('[data-field="name"]').value = watch.name || "";
-  detail.querySelector('[data-field="url"]').value = watch.url || "";
+  detail.querySelector('[data-field="url"]').value = String(watch.id || "");
   detail.querySelector('[data-field="open"]').value = watch.open || "06:00";
   detail.querySelector('[data-field="close"]').value = watch.close || "22:00";
   detail.querySelectorAll("[data-field]").forEach((input) => {
@@ -289,7 +314,7 @@ function renderDetail() {
   });
 
   const weekdayRow = detail.querySelector("#weekday-row");
-  weekdayRow.append(
+  detail.querySelector("#day-presets").append(
     chip("매일", cfgApi.formatWeekdays(watch.weekdays) === "매일", () => setDays([0, 1, 2, 3, 4, 5, 6])),
     chip("평일", cfgApi.formatWeekdays(watch.weekdays) === "평일", () => setDays([0, 1, 2, 3, 4])),
     chip("주말", cfgApi.formatWeekdays(watch.weekdays) === "주말", () => setDays([5, 6]))
@@ -297,7 +322,7 @@ function renderDetail() {
   cfgApi.WEEKDAYS.forEach((label, index) => {
     const selected = (watch.weekdays || []).map(Number).includes(index);
     weekdayRow.append(
-      chip((selected ? "✓ " : "") + label, selected, () => {
+      chip(label, selected, () => {
         const days = new Set((watch.weekdays || []).map(Number));
         if (days.has(index)) days.delete(index);
         else days.add(index);
@@ -322,7 +347,7 @@ function renderDetail() {
   cfgApi.menuSlots(watch.open, watch.close).forEach((slot) => {
     const selected = (watch.slots || []).includes(slot);
     slotRow.append(
-      chip(slot, selected, () => {
+      chip(slot.replace("-", "–"), selected, () => {
         const slots = new Set(watch.slots || []);
         if (slots.has(slot)) slots.delete(slot);
         else slots.add(slot);

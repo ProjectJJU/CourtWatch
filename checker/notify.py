@@ -5,7 +5,9 @@ import re
 
 import requests
 
-_LINK_RE = re.compile(r"(?i)(?:https?://|www\.)\S+")
+_LINK_RE = re.compile(
+    r"(?i)(?:\[[^\]]+\]\([^)]+\)|<\s*https?://[^>]+>|https?://\S+|www\.\S+|javascript:\S+|data:\S+)"
+)
 
 FAILURE_TEXT = "예약 화면을 읽지 못했습니다. 다음 검사에서 다시 확인합니다."
 TEST_TEXT = "연결 확인"

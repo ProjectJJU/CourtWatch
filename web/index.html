@@ -2,73 +2,84 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>빈 코트 설정</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="top">
-    <div>
+    <div class="title-block">
       <p class="eyebrow">Court Watch</p>
-      <h1>빈 코트 설정</h1>
+      <h1>빈 코트</h1>
+      <p class="lede">새로 빈 시간만 알립니다. 알림에는 주소를 넣지 않습니다.</p>
     </div>
-    <p id="message" class="message" role="status"></p>
-    <button type="button" class="save-button primary" hidden>저장</button>
+    <div class="top-actions">
+      <p id="message" class="message" role="status"></p>
+      <button type="button" class="save-button primary" hidden>저장</button>
+    </div>
   </header>
 
-  <section class="card" id="link-card">
-    <h2>저장소 연결</h2>
-    <p class="hint">토큰과 ntfy 토픽은 이 브라우저에만 저장됩니다. 공개 저장소에는 올리지 마세요.</p>
+  <details class="card connect" id="link-card" open>
+    <summary>
+      <span>연결</span>
+      <small>이 브라우저에만 저장</small>
+    </summary>
+    <p class="hint">토큰과 토픽은 이 기기에만 남습니다. 알림이나 공개 저장소로 보내지 않습니다.</p>
     <div class="grid">
       <label>소유자<input id="owner" autocomplete="off"></label>
       <label>저장소<input id="repo" autocomplete="off"></label>
       <label>브랜치<input id="branch" value="main" autocomplete="off"></label>
       <label>GitHub 토큰<input id="token" type="password" autocomplete="off" placeholder="contents 권한"></label>
       <label>ntfy 토픽<input id="topic" autocomplete="off" placeholder="긴 임의 이름"></label>
-      <label>ntfy 서버<input id="server" value="https://ntfy.sh" autocomplete="off"></label>
       <label>ntfy 토큰<input id="ntfy-token" type="password" autocomplete="off" placeholder="잠근 토픽만"></label>
+      <label class="span-2">ntfy 서버<input id="server" value="https://ntfy.sh" autocomplete="off"></label>
     </div>
     <div class="row">
       <button type="button" id="load-button">불러오기</button>
       <button type="button" id="test-button" class="secondary">알림 테스트</button>
     </div>
-  </section>
+  </details>
 
   <section class="card" id="status-card">
-    <h2>현황</h2>
+    <h2>지금</h2>
     <div id="status" class="status">설정을 불러오면 최근 검사가 표시됩니다.</div>
   </section>
 
   <section class="card" id="general-card" hidden>
-    <h2>알림과 수면</h2>
+    <h2>알림</h2>
+    <p class="group-label">수신</p>
     <div class="row">
       <button type="button" id="alert-toggle" class="toggle"></button>
       <button type="button" data-days="7">7일</button>
       <button type="button" data-days="14">14일</button>
     </div>
+    <p class="group-label">수면</p>
     <div class="row" id="sleep-row">
-      <button type="button" data-sleep="00:00,00:00">수면 없음</button>
+      <button type="button" data-sleep="00:00,00:00">없음</button>
       <button type="button" data-sleep="23:00,07:00">23:00–07:00</button>
       <button type="button" data-sleep="00:00,08:00">00:00–08:00</button>
     </div>
-    <div class="row">
+    <div class="time-row">
       <label>시작<input id="sleep-start" type="time"></label>
       <label>끝<input id="sleep-end" type="time"></label>
-      <button type="button" id="sleep-apply">수면 적용</button>
+      <button type="button" id="sleep-apply">적용</button>
     </div>
   </section>
 
   <section class="card" id="court-card" hidden>
     <div class="section-head">
-      <h2>코트</h2>
-      <div class="row add-row">
-        <input id="add-address" placeholder="번호 또는 예약 주소">
+      <div>
+        <h2>코트</h2>
+        <p class="hint">번호만 적어도 추가됩니다.</p>
+      </div>
+      <div class="add-row">
+        <input id="add-address" placeholder="코트 번호" inputmode="numeric" autocomplete="off">
         <button type="button" id="add-button">추가</button>
       </div>
     </div>
     <div id="court-list" class="court-list"></div>
     <div id="court-detail"></div>
-    <div class="row">
+    <div class="save-footer">
       <button type="button" class="save-button primary" hidden>저장</button>
     </div>
   </section>

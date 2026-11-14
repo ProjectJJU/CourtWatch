@@ -281,7 +281,9 @@ def format_weekdays(days: list[int]) -> str:
     return "".join(WEEKDAY_LABELS[day] for day in ordered if 0 <= day <= 6)
 
 
-_LINK_RE = re.compile(r"(?i)(?:https?://|www\.)\S+")
+_LINK_RE = re.compile(
+    r"(?i)(?:\[[^\]]+\]\([^)]+\)|<\s*https?://[^>]+>|https?://\S+|www\.\S+|javascript:\S+|data:\S+)"
+)
 
 
 def visible_text(value: object) -> str:
