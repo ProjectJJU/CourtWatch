@@ -355,7 +355,9 @@ function render() {
   const ready = Boolean(state.config);
   document.querySelector("#general-card").hidden = !ready;
   document.querySelector("#court-card").hidden = !ready;
-  document.querySelector("#savebar").hidden = !ready;
+  document.querySelectorAll(".save-button").forEach((button) => {
+    button.hidden = !ready;
+  });
   renderStatus();
   if (!ready) return;
   renderGeneral();
@@ -365,8 +367,10 @@ function render() {
 document.querySelector("#load-button").addEventListener("click", () => {
   loadRepo().catch((error) => say(error.message));
 });
-document.querySelector("#save-button").addEventListener("click", () => {
-  saveRepo().catch((error) => say(error.message));
+document.querySelectorAll(".save-button").forEach((button) => {
+  button.addEventListener("click", () => {
+    saveRepo().catch((error) => say(error.message));
+  });
 });
 document.querySelector("#test-button").addEventListener("click", () => {
   testNtfy().catch(() => say("테스트 알림을 보내지 못했습니다."));

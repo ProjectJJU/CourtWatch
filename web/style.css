@@ -10,7 +10,7 @@
 body {
   margin: 0 auto;
   max-width: 880px;
-  padding: 24px 16px 96px;
+  padding: 24px 16px 32px;
 }
 
 h1, h2, p { margin: 0; }
@@ -126,21 +126,9 @@ button.danger { color: #8d2d2d; }
   border-top: 1px solid #eee6d6;
 }
 
-.savebar[hidden] { display: none; }
+.save-button[hidden] { display: none; }
 
-.savebar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  justify-content: center;
-  padding: 12px;
-  background: rgba(243, 241, 232, 0.94);
-  border-top: 1px solid #ddd6c6;
-}
-
-.savebar .primary { min-width: 180px; }
+.primary { min-width: 140px; }
 
 @media (max-width: 700px) {
   .top, .section-head { display: block; }
