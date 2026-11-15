@@ -257,7 +257,8 @@
   "pending": [],
   "failure_pending": false,
   "failure_notified": false,
-  "last_check": "2026-11-15 03:46",
+  "last_check": "2026-11-15 18:28",
   "last_error": null,
-  "open_now": []
+  "open_now": [],
+  "ntfy_cursor": "1794734904"
 }
