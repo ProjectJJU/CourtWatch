@@ -71,6 +71,10 @@ h2 { font-size: 1.05rem; }
   margin-bottom: 12px;
 }
 
+.booking-group + .booking-group {
+  margin-top: 18px;
+}
+
 .group-label {
   margin: 14px 0 8px;
   font-size: 0.78rem;

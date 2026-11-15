@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
 import re
+from urllib.parse import quote
 
 import requests
 
@@ -32,6 +34,35 @@ def _chunks(text: str) -> list[str]:
 def _plain(value: str) -> str:
     lines = [" ".join(_LINK_RE.sub(" ", line).split()) for line in str(value).splitlines()]
     return "\n".join(lines).strip()
+
+
+def poll_messages(since: str) -> tuple[list[dict], bool]:
+    topic = os.environ.get("NTFY_TOPIC", "").strip()
+    since = str(since or "").strip()
+    if not topic or not since:
+        return [], True
+    server = (os.environ.get("NTFY_SERVER") or "https://ntfy.sh").strip().rstrip("/")
+    token = os.environ.get("NTFY_TOKEN", "").strip()
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    url = f"{server}/{quote(topic, safe='')}/json?poll=1&since={quote(since, safe='')}"
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+    except requests.RequestException:
+        print("command poll failed")
+        return [], False
+    messages = []
+    for line in response.text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if item.get("event") == "message" and item.get("id"):
+            messages.append(item)
+    return messages, True
 
 
 def send_ntfy(text: str, title: str, priority: int = 5) -> bool:

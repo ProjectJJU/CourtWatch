@@ -1,22 +1,26 @@
 import tempfile
 import unittest
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from checker.config_store import load_config, save_config
 from checker.logic import (
     acknowledge,
+    booking_window,
     collect_alerts,
+    crawl_end,
     failure_should_send,
     forget_courts,
     format_weekdays,
     fresh_state,
     in_sleep,
+    is_status_command,
     observed_slots,
     overlaps,
     parse_event_titles,
     render_alert,
+    render_open_now,
     within_hours,
 )
 from checker.settings import apply_callback, apply_text, parse_court_address
@@ -190,6 +194,71 @@ class CalendarTests(unittest.TestCase):
             ],
         }
         self.assertEqual(observed_slots(config, {"47": {}}, date(2026, 11, 14)), {})
+
+    def test_booking_groups_limit_each_court(self):
+        today = date(2026, 11, 15)
+        config = {
+            "booking_groups": [
+                {"id": "stadium", "courts": [73], "after_days": 2, "days": 14},
+                {"id": "sapryang", "courts": [47, 64, 66, 67], "after_days": 1, "days": 15},
+            ],
+            "watches": [
+                {
+                    "id": 73,
+                    "enabled": True,
+                    "open": "06:00",
+                    "close": "22:00",
+                    "weekdays": list(range(7)),
+                    "slots": ["20:00-22:00"],
+                },
+                {
+                    "id": 47,
+                    "enabled": True,
+                    "open": "08:00",
+                    "close": "22:00",
+                    "weekdays": list(range(7)),
+                    "slots": ["20:00-22:00"],
+                },
+            ],
+        }
+        calendars = {
+            "73": _open_days(date(2026, 11, 15), date(2026, 12, 5)),
+            "47": _open_days(date(2026, 11, 15), date(2026, 12, 5)),
+        }
+        observed = observed_slots(config, calendars, today)
+        self.assertEqual(booking_window(config, 73, today), (date(2026, 11, 17), date(2026, 11, 30)))
+        self.assertEqual(booking_window(config, 47, today), (date(2026, 11, 16), date(2026, 11, 30)))
+        self.assertEqual(crawl_end(config, today), date(2026, 11, 30))
+        self.assertNotIn("73|2026-11-16|20:00-22:00", observed)
+        self.assertTrue(observed["73|2026-11-17|20:00-22:00"])
+        self.assertTrue(observed["73|2026-11-30|20:00-22:00"])
+        self.assertNotIn("73|2026-12-01|20:00-22:00", observed)
+        self.assertNotIn("47|2026-11-15|20:00-22:00", observed)
+        self.assertTrue(observed["47|2026-11-16|20:00-22:00"])
+        self.assertTrue(observed["47|2026-11-30|20:00-22:00"])
+        self.assertNotIn("47|2026-12-01|20:00-22:00", observed)
+
+    def test_status_command_is_exact(self):
+        self.assertTrue(is_status_command("", "확인"))
+        self.assertTrue(is_status_command("확인", ""))
+        self.assertFalse(is_status_command("지금 빈 시간", "지금 빈 시간이 없습니다."))
+        self.assertFalse(is_status_command("코트 감시 실패", "예약 화면을 읽지 못했습니다. 다음 검사에서 다시 확인합니다."))
+        text = render_open_now(
+            {"watches": [{"id": 73, "name": "시민C"}]},
+            ["73|2026-11-17|20:00-22:00"],
+        )
+        self.assertTrue(text.startswith("지금 빈 시간"))
+        self.assertIn("2026-11-17 (화) 20:00-22:00", text)
+        self.assertNotIn("http", text)
+
+
+def _open_days(start: date, end: date) -> dict:
+    days = {}
+    current = start
+    while current <= end:
+        days[current.isoformat()] = {"grey": False, "rest": False, "ranges": []}
+        current += timedelta(days=1)
+    return days
 
 
 class SettingsTests(unittest.TestCase):

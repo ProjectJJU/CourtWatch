@@ -47,7 +47,7 @@
 
   <section class="card" id="general-card" hidden>
     <h2>알림</h2>
-    <p class="hint">지난 날짜는 빼고, 오늘부터 한 달까지 봅니다.</p>
+    <p class="hint">지난 날짜는 보지 않습니다. 휴대폰 ntfy에서 확인이라고 보내면 지금 빈 시간을 답합니다.</p>
     <div class="row">
       <button type="button" id="alert-toggle" class="toggle"></button>
     </div>
@@ -62,6 +62,12 @@
       <label>끝<input id="sleep-end" type="time"></label>
       <button type="button" id="sleep-apply">적용</button>
     </div>
+  </section>
+
+  <section class="card" id="booking-card" hidden>
+    <h2>예약 기간</h2>
+    <p class="hint">오늘을 기준으로, 예약이 열리는 첫날과 며칠 동안 볼지를 그룹마다 정합니다.</p>
+    <div id="booking-groups"></div>
   </section>
 
   <section class="card" id="court-card" hidden>

@@ -12,12 +12,14 @@ from checker.logic import (
     collect_alerts,
     failure_should_send,
     is_muted,
+    is_status_command,
     note_recovery,
     observed_slots,
     render_alert,
+    render_open_now,
     seoul_now,
 )
-from checker.notify import FAILURE_TEXT, TEST_TEXT, send_ntfy
+from checker.notify import FAILURE_TEXT, TEST_TEXT, poll_messages, send_ntfy
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config.yaml"
@@ -47,9 +49,11 @@ def run() -> int:
     exit_code = 0
 
     enabled = [watch for watch in config.get("watches", []) if watch.get("enabled", True)]
+    crawled = False
     if not enabled:
         state["open_now"] = []
         state["last_error"] = None
+        crawled = True
     else:
         try:
             calendars, renamed = crawl_courts(config, now.date())
@@ -57,6 +61,7 @@ def run() -> int:
             observed = observed_slots(config, calendars, now.date())
             note_recovery(state)
             alerts = collect_alerts(state, observed, muted, now.date().isoformat())
+            crawled = True
             if alerts and not muted:
                 message = render_alert(config, alerts)
                 if send_ntfy(message, "빈 코트", priority=5):
@@ -64,7 +69,7 @@ def run() -> int:
                 else:
                     exit_code = 1
                     print("alert delivery failed")
-        except CrawlError as exc:
+        except CrawlError:
             state["last_error"] = "예약 화면을 읽지 못했습니다."
             print("crawl failed")
             exit_code = 1
@@ -73,6 +78,29 @@ def run() -> int:
                     acknowledge_failure(state)
                 else:
                     print("failure alert delivery failed")
+
+    cursor = str(state.get("ntfy_cursor") or "").strip() or str(int(now.timestamp()) - 900)
+    messages, polled = poll_messages(cursor)
+    asked = polled and any(
+        is_status_command(str(item.get("title") or ""), str(item.get("message") or ""))
+        for item in messages
+    )
+    if asked:
+        if crawled:
+            reply = render_open_now(config, state.get("open_now") or [])
+        else:
+            reply = FAILURE_TEXT
+        if send_ntfy(reply, "지금 빈 시간", priority=4):
+            pass
+        else:
+            polled = False
+            exit_code = 1
+            print("status reply failed")
+    if polled:
+        if messages:
+            state["ntfy_cursor"] = str(messages[-1].get("id") or cursor)
+        elif not state.get("ntfy_cursor"):
+            state["ntfy_cursor"] = str(int(now.timestamp()))
 
     state["last_check"] = now.strftime("%Y-%m-%d %H:%M")
     if _meaningful(state) != loaded or config_changed:

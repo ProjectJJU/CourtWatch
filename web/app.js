@@ -198,6 +198,87 @@ function renderStatus() {
   box.append(list);
 }
 
+function seoulToday() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const pick = (type) => Number(parts.find((part) => part.type === type).value);
+  return new Date(pick("year"), pick("month") - 1, pick("day"));
+}
+
+function addDays(day, count) {
+  const next = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+  next.setDate(next.getDate() + count);
+  return next;
+}
+
+function formatMonthDay(day) {
+  return `${day.getMonth() + 1}월 ${day.getDate()}일`;
+}
+
+function renderBooking() {
+  const box = document.querySelector("#booking-groups");
+  box.replaceChildren();
+  const today = seoulToday();
+  (state.config.booking_groups || []).forEach((group) => {
+    const block = document.createElement("div");
+    block.className = "booking-group";
+    const title = document.createElement("p");
+    title.className = "group-label";
+    title.textContent = plain(group.name) || "예약";
+    const names = document.createElement("p");
+    names.className = "hint";
+    const courts = (group.courts || []).map((id) => {
+      const watch = (state.config.watches || []).find((item) => Number(item.id) === Number(id));
+      return plain(watch && watch.name) || String(id);
+    });
+    names.textContent = courts.join(", ");
+    const row = document.createElement("div");
+    row.className = "time-row";
+    const range = document.createElement("p");
+    range.className = "hint";
+
+    function refreshRange() {
+      const after = Number(group.after_days) || 0;
+      const days = Math.max(1, Number(group.days) || 1);
+      const start = addDays(today, after);
+      const end = addDays(start, days - 1);
+      range.textContent = `${formatMonthDay(start)}부터 ${formatMonthDay(end)}까지`;
+    }
+
+    function numberField(label, key, min, max) {
+      const field = document.createElement("label");
+      field.append(document.createTextNode(label));
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = String(min);
+      input.max = String(max);
+      input.inputMode = "numeric";
+      input.value = String(group[key]);
+      input.addEventListener("change", () => {
+        const number = Math.round(Number(input.value));
+        const next = Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : min;
+        group[key] = next;
+        input.value = String(next);
+        refreshRange();
+      });
+      field.append(input);
+      return field;
+    }
+
+    row.append(
+      numberField("오늘로부터 며칠 뒤", "after_days", 0, 60),
+      numberField("예약 가능 일수", "days", 1, 60)
+    );
+    refreshRange();
+    block.append(title, names, row, range);
+    box.append(block);
+  });
+}
+
 function renderGeneral() {
   const config = state.config;
   const alertButton = document.querySelector("#alert-toggle");
@@ -378,6 +459,7 @@ function setDays(days) {
 function render() {
   const ready = Boolean(state.config);
   document.querySelector("#general-card").hidden = !ready;
+  document.querySelector("#booking-card").hidden = !ready;
   document.querySelector("#court-card").hidden = !ready;
   document.querySelectorAll(".save-button").forEach((button) => {
     button.hidden = !ready;
@@ -385,6 +467,7 @@ function render() {
   renderStatus();
   if (!ready) return;
   renderGeneral();
+  renderBooking();
   renderCourts();
 }
 

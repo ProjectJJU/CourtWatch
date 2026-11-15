@@ -150,21 +150,66 @@ def watch_by_id(config: dict) -> dict[str, dict]:
     return {str(watch["id"]): watch for watch in config.get("watches", [])}
 
 
+def _as_int(value: object, default: int = 0) -> int:
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+
+
+def booking_window(config: dict, court_id: object, today: date) -> tuple[date, date] | None:
+    groups = config.get("booking_groups") or []
+    if not groups:
+        return today, today + timedelta(days=HORIZON_DAYS - 1)
+    for group in groups:
+        courts = {str(item) for item in group.get("courts") or []}
+        if str(court_id) not in courts:
+            continue
+        after = _as_int(group.get("after_days"))
+        days = _as_int(group.get("days"))
+        if after < 0 or days < 1:
+            return None
+        start = today + timedelta(days=after)
+        return start, start + timedelta(days=days - 1)
+    return None
+
+
+def crawl_end(config: dict, today: date) -> date:
+    groups = config.get("booking_groups") or []
+    if not groups:
+        return today + timedelta(days=HORIZON_DAYS - 1)
+    end = today
+    for group in groups:
+        after = _as_int(group.get("after_days"))
+        days = _as_int(group.get("days"))
+        if after < 0 or days < 1:
+            continue
+        group_end = today + timedelta(days=after + days - 1)
+        if group_end > end:
+            end = group_end
+    return end
+
+
 def observed_slots(config: dict, calendars: dict, today: date) -> dict[str, bool]:
-    lookahead = HORIZON_DAYS
     observed: dict[str, bool] = {}
     for watch in config.get("watches", []):
         if not watch.get("enabled", True):
             continue
         court_id = str(watch["id"])
+        window = booking_window(config, court_id, today)
+        if window is None:
+            continue
+        start, end = window
         days = calendars.get(court_id, {})
         weekdays = set(int(day) for day in watch.get("weekdays", []))
-        for offset in range(lookahead):
-            current = today + timedelta(days=offset)
+        current = start
+        while current <= end:
             if current.weekday() not in weekdays:
+                current += timedelta(days=1)
                 continue
             iso = current.isoformat()
             info = days.get(iso)
+            current += timedelta(days=1)
             if not info:
                 continue
             for slot in watch.get("slots", []):
@@ -175,12 +220,20 @@ def observed_slots(config: dict, calendars: dict, today: date) -> dict[str, bool
                     observed[key] = False
                     continue
                 busy = False
-                for start, end in info.get("ranges", []):
-                    if overlaps(slot, start, end):
+                for busy_start, busy_end in info.get("ranges", []):
+                    if overlaps(slot, busy_start, busy_end):
                         busy = True
                         break
                 observed[key] = not busy
     return observed
+
+
+def is_status_command(title: str, message: str) -> bool:
+    body = " ".join(str(message or "").split())
+    heading = " ".join(str(title or "").split())
+    if body == "확인":
+        return True
+    return body == "" and heading == "확인"
 
 
 def _prune(slots: dict, pending: set[str], today_iso: str) -> None:
@@ -315,6 +368,15 @@ def render_alert(config: dict, keys: list[str]) -> str:
     return "\n".join(lines).strip()
 
 
+def render_open_now(config: dict, keys: list[str]) -> str:
+    if not keys:
+        return "지금 빈 시간이 없습니다."
+    lines = render_alert(config, keys).splitlines()
+    if lines:
+        lines[0] = "지금 빈 시간"
+    return "\n".join(lines)
+
+
 def render_status(config: dict, state: dict) -> str:
     sleep = config.get("sleep") or {}
     start = str(sleep.get("start") or "")
@@ -326,7 +388,7 @@ def render_status(config: dict, state: dict) -> str:
     lines = [
         sleep_line,
         "알림: 켜짐" if config.get("alerts_enabled", True) else "알림: 꺼짐",
-        f"기간: 오늘부터 {HORIZON_DAYS}일",
+        *_booking_lines(config),
         f"마지막 검사: {state.get('last_check') or '없음'}",
     ]
     if state.get("last_error"):
@@ -365,6 +427,19 @@ def forget_courts(state: dict, court_ids: set[str]) -> None:
     state["slots"] = {key: value for key, value in (state.get("slots") or {}).items() if keep(key)}
     state["pending"] = [key for key in state.get("pending") or [] if keep(key)]
     state["open_now"] = [key for key in state.get("open_now") or [] if keep(key)]
+
+
+def _booking_lines(config: dict) -> list[str]:
+    groups = config.get("booking_groups") or []
+    if not groups:
+        return [f"기간: 오늘부터 {HORIZON_DAYS}일"]
+    lines = []
+    for group in groups:
+        name = visible_text(group.get("name")) or str(group.get("id") or "예약")
+        after = _as_int(group.get("after_days"))
+        days = _as_int(group.get("days"))
+        lines.append(f"{name}: {after}일 뒤부터 {days}일")
+    return lines
 
 
 def is_muted(config: dict, now: datetime) -> bool:

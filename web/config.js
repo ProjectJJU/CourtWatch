@@ -125,7 +125,32 @@
     config.sleep = config.sleep || { start: "02:00", end: "02:00" };
     config.presets = config.presets || [];
     config.watches = config.watches || [];
+    config.booking_groups = normalizeGroups(config.booking_groups);
     return config;
+  }
+
+  function defaultGroups() {
+    return [
+      { id: "stadium", name: "양산종합운동장", courts: [73], after_days: 2, days: 14 },
+      { id: "sapryang", name: "삽량체육공원", courts: [47, 64, 66, 67], after_days: 1, days: 15 },
+    ];
+  }
+
+  function normalizeGroups(groups) {
+    if (!Array.isArray(groups) || !groups.length) return defaultGroups();
+    return groups.map((group, index) => ({
+      id: group.id || "group" + (index + 1),
+      name: group.name || group.id || "예약",
+      courts: (group.courts || []).map(Number),
+      after_days: clamp(group.after_days, 0, 60, 0),
+      days: clamp(group.days, 1, 60, 1),
+    }));
+  }
+
+  function clamp(value, min, max, fallback) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    return Math.min(max, Math.max(min, Math.round(number)));
   }
 
   function quote(value) {
@@ -157,6 +182,14 @@
       lines.push(`    label: ${quote(preset.label || preset.id)}`);
       lines.push(`    weekdays: ${dumpFlow((preset.weekdays || []).map(Number))}`);
       lines.push(`    slots: ${dumpFlow(preset.slots || [])}`);
+    });
+    lines.push("booking_groups:");
+    normalizeGroups(config.booking_groups).forEach((group) => {
+      lines.push(`  - id: ${group.id}`);
+      lines.push(`    name: ${quote(group.name || group.id)}`);
+      lines.push(`    courts: ${dumpFlow((group.courts || []).map(Number))}`);
+      lines.push(`    after_days: ${group.after_days}`);
+      lines.push(`    days: ${group.days}`);
     });
     lines.push("watches:");
     (config.watches || []).forEach((watch) => {
@@ -225,7 +258,7 @@
       open: "06:00",
       close: "22:00",
       weekdays: [0, 1, 2, 3, 4],
-      slots: ["18:00-20:00", "20:00-22:00"],
+      slots: ["20:00-22:00"],
     };
   }
 
