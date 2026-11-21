@@ -206,9 +206,9 @@
   },
   "pending": [],
   "failure_pending": false,
-  "failure_notified": true,
-  "last_check": "2026-11-21 16:30",
-  "last_error": "예약 화면을 읽지 못했습니다.",
+  "failure_notified": false,
+  "last_check": "2026-11-22 00:33",
+  "last_error": null,
   "open_now": [],
-  "ntfy_cursor": "1794734904"
+  "ntfy_cursor": "QAtTpLWtLsOq"
 }
