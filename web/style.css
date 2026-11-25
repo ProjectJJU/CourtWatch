@@ -172,6 +172,159 @@ h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 6px; }
   border-top: 1px solid var(--line);
 }
 
+.key-list li {
+  display: grid;
+  gap: 2px;
+}
+
+.key-list strong {
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+.key-list span {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.fold {
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  padding-top: 4px;
+}
+
+.fold:first-of-type {
+  margin-top: 10px;
+}
+
+.fold-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 2px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.fold-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.fold-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  flex: none;
+}
+
+.fold-badge {
+  min-width: 1.6em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.fold-chevron {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.fold-body {
+  padding: 0 0 10px;
+}
+
+.history-card {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f4f8f5;
+  margin-top: 8px;
+}
+
+.history-card:first-child {
+  margin-top: 0;
+}
+
+.history-at {
+  margin: 0 0 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.history-card .status-list {
+  margin-top: 4px;
+}
+
+.watch-summary {
+  display: grid;
+  gap: 14px;
+}
+
+.watch-block {
+  display: grid;
+  gap: 8px;
+}
+
+.slot-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.slot-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--green-soft);
+  color: var(--green);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+.slot-empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.extra-summary-list {
+  display: grid;
+  gap: 8px;
+}
+
+.extra-summary {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f4f8f5;
+  border: 1px solid transparent;
+}
+
+.extra-summary strong {
+  font-size: 0.95rem;
+}
+
+.extra-summary p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .guest-note {
   margin: 0 0 14px;
   padding: 12px 14px;

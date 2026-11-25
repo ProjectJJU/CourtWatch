@@ -13,6 +13,9 @@ STATUS_RE = re.compile(r"\[(신청|승인|결제|취소|환불|휴관)\]")
 HM_RE = re.compile(r"^(\d{2}):(\d{2})$")
 
 
+ALERT_HISTORY_LIMIT = 10
+
+
 def fresh_state() -> dict:
     return {
         "initialized": False,
@@ -24,8 +27,23 @@ def fresh_state() -> dict:
         "failure_notified": False,
         "last_check": None,
         "last_error": None,
+        "last_alerts": [],
+        "alert_history": [],
         "open_now": [],
     }
+
+
+def record_alert_history(state: dict, at: str) -> None:
+    keys = [str(key) for key in (state.get("last_alerts") or []) if key]
+    if not keys:
+        return
+    history = [
+        item
+        for item in (state.get("alert_history") or [])
+        if isinstance(item, dict) and item.get("keys")
+    ]
+    history.insert(0, {"at": str(at or ""), "keys": keys})
+    state["alert_history"] = history[:ALERT_HISTORY_LIMIT]
 
 
 def needs_state_save(previous: dict, current: dict) -> bool:
@@ -305,6 +323,7 @@ def collect_alerts(state: dict, observed: dict[str, bool], muted: bool, today_is
     slots = dict(state.get("slots") or {})
     pending = set(state.get("pending") or [])
     send: list[str] = []
+    discovered: list[str] = []
 
     if not state.get("initialized"):
         for key, is_open in observed.items():
@@ -313,6 +332,8 @@ def collect_alerts(state: dict, observed: dict[str, bool], muted: bool, today_is
         state["slots"] = slots
         state["pending"] = sorted(pending)
         state["initialized"] = True
+        state["last_alerts"] = []
+        state.setdefault("alert_history", [])
         state["open_now"] = sorted(key for key, is_open in observed.items() if is_open)
         return []
 
@@ -322,6 +343,8 @@ def collect_alerts(state: dict, observed: dict[str, bool], muted: bool, today_is
             continue
         previous = bool(slots.get(key, False))
         if is_open and not previous:
+            if key not in discovered:
+                discovered.append(key)
             if muted:
                 pending.add(key)
                 slots[key] = True
@@ -343,6 +366,7 @@ def collect_alerts(state: dict, observed: dict[str, bool], muted: bool, today_is
     _prune(slots, pending, today_iso)
     state["slots"] = slots
     state["pending"] = sorted(pending)
+    state["last_alerts"] = list(discovered)
     state["open_now"] = sorted(key for key, is_open in observed.items() if is_open)
     return send
 

@@ -18,6 +18,7 @@ from checker.logic import (
     needs_state_save,
     note_recovery,
     observed_slots,
+    record_alert_history,
     render_alert,
     render_open_now,
     seoul_now,
@@ -112,6 +113,8 @@ def run() -> int:
             state["ntfy_cursor"] = str(int(now.timestamp()))
 
     state["last_check"] = now.strftime("%Y-%m-%d %H:%M:%S")
+    if crawled:
+        record_alert_history(state, state["last_check"])
     if needs_state_save(previous, state) or config_changed:
         if store is None:
             save_state(STATE_PATH, state)

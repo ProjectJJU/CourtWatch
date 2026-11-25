@@ -177,6 +177,15 @@
     return next;
   }
 
+  function pruneEmptyExtras(extras) {
+    return (extras || [])
+      .map(normalizeExtra)
+      .filter(
+        (extra) =>
+          extra.label || extra.weekdays.length || extra.dates.length || extra.slots.length
+      );
+  }
+
   function normalizeWatch(watch) {
     const next = { ...(watch || {}) };
     next.id = Number(next.id);
@@ -198,10 +207,7 @@
       next.weekend_slots = [...(next.weekend_slots || [])];
     }
     const rawExtras = Array.isArray(next.extras) ? next.extras : [];
-    next.extras = rawExtras.map(normalizeExtra).filter(
-      (extra) =>
-        extra.label || extra.weekdays.length || extra.dates.length || extra.slots.length
-    );
+    next.extras = rawExtras.map(normalizeExtra);
     const weekdays = [];
     if ((next.weekday_slots || []).length) weekdays.push(0, 1, 2, 3, 4);
     if ((next.weekend_slots || []).length) weekdays.push(5, 6);
@@ -264,6 +270,7 @@
     });
     lines.push("watches:");
     (config.watches || []).map(normalizeWatch).forEach((watch) => {
+      const extras = pruneEmptyExtras(watch.extras);
       const fields = [
         `id: ${Number(watch.id)}`,
         `name: ${quote(watch.name || "")}`,
@@ -279,9 +286,9 @@
       fields.forEach((field, index) => {
         lines.push((index === 0 ? "  - " : "    ") + field);
       });
-      if ((watch.extras || []).length) {
+      if (extras.length) {
         lines.push("    extras:");
-        (watch.extras || []).forEach((extra) => {
+        extras.forEach((extra) => {
           lines.push(`      - label: ${quote(extra.label || "")}`);
           lines.push(`        weekdays: ${dumpFlow((extra.weekdays || []).map(Number))}`);
           lines.push(`        dates: ${dumpFlow(extra.dates || [])}`);
@@ -364,6 +371,7 @@
     normalizeGroups,
     normalizeWatch,
     normalizeExtra,
+    pruneEmptyExtras,
     formatWeekdays,
     hmToMinutes,
   };

@@ -10,6 +10,11 @@ const state = {
   editingGroupInfo: false,
   editingGroupWatch: false,
   editingGeneral: false,
+  statusFold: {
+    alarm: true,
+    open: true,
+    history: false,
+  },
 };
 let auth = null;
 let db = null;
@@ -149,11 +154,17 @@ function groupExtras(group) {
 }
 
 function applyGroupExtras(group, extras) {
+  const watches = watchesInGroup(group);
+  if (!watches.length) {
+    say("먼저 코트를 추가하세요.");
+    return false;
+  }
   const normalized = extras.map(cfgApi.normalizeExtra);
-  watchesInGroup(group).forEach((watch) => {
+  watches.forEach((watch) => {
     watch.extras = JSON.parse(JSON.stringify(normalized));
     Object.assign(watch, cfgApi.normalizeWatch(watch));
   });
+  return true;
 }
 
 function applyGroupHours(group) {
@@ -224,7 +235,11 @@ async function saveRepo() {
     return;
   }
   state.config.booking_groups = cfgApi.normalizeGroups(state.config.booking_groups);
-  state.config.watches = (state.config.watches || []).map(cfgApi.normalizeWatch);
+  state.config.watches = (state.config.watches || []).map((watch) => {
+    const next = cfgApi.normalizeWatch(watch);
+    next.extras = cfgApi.pruneEmptyExtras(next.extras);
+    return next;
+  });
   applyGroupHoursToAll();
   await db.collection("courtwatch").doc("config").set(state.config);
   closeEditors();
@@ -344,6 +359,156 @@ async function runCheck(word) {
   }
 }
 
+function statusAlertKeys(current) {
+  const open = current.open_now || [];
+  const keys = [];
+  const seen = new Set();
+  const push = (list) => {
+    (list || []).forEach((key) => {
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      keys.push(key);
+    });
+  };
+  if (Object.prototype.hasOwnProperty.call(current, "last_alerts")) {
+    push(current.last_alerts);
+  } else {
+    push(checkApi.alarmKeys(current, open).keys);
+  }
+  push((current.pending || []).filter((key) => open.includes(key)));
+  return keys;
+}
+
+function formatIsoDay(iso) {
+  const parts = String(iso || "").split("-");
+  if (parts.length !== 3) return iso || "";
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (!month || !day) return iso;
+  return `${month}월 ${day}일`;
+}
+
+function renderSlotPills(slots, emptyText) {
+  const row = document.createElement("div");
+  row.className = "slot-pills";
+  const list = slots || [];
+  if (!list.length) {
+    const empty = document.createElement("span");
+    empty.className = "slot-empty";
+    empty.textContent = emptyText || "없음";
+    row.append(empty);
+    return row;
+  }
+  list.forEach((slot) => {
+    const pill = document.createElement("span");
+    pill.className = "slot-pill";
+    pill.textContent = String(slot).replace("-", "–");
+    row.append(pill);
+  });
+  return row;
+}
+
+function renderWatchSummary(group) {
+  const wrap = document.createElement("div");
+  wrap.className = "watch-summary";
+
+  const weekdayBlock = document.createElement("div");
+  weekdayBlock.className = "watch-block";
+  const weekdayTitle = document.createElement("p");
+  weekdayTitle.className = "group-label";
+  weekdayTitle.textContent = "평일";
+  weekdayBlock.append(weekdayTitle, renderSlotPills(groupWeekdaySlots(group)));
+  wrap.append(weekdayBlock);
+
+  const weekendBlock = document.createElement("div");
+  weekendBlock.className = "watch-block";
+  const weekendTitle = document.createElement("p");
+  weekendTitle.className = "group-label";
+  weekendTitle.textContent = "주말";
+  weekendBlock.append(weekendTitle, renderSlotPills(groupWeekendSlots(group)));
+  wrap.append(weekendBlock);
+
+  const extras = groupExtras(group);
+  if (extras.length) {
+    const extrasBlock = document.createElement("div");
+    extrasBlock.className = "watch-block";
+    const extrasTitle = document.createElement("p");
+    extrasTitle.className = "group-label";
+    extrasTitle.textContent = `추가 감시 ${extras.length}개`;
+    extrasBlock.append(extrasTitle);
+    const list = document.createElement("div");
+    list.className = "extra-summary-list";
+    extras.forEach((extra, index) => {
+      const card = document.createElement("div");
+      card.className = "extra-summary";
+      const name = document.createElement("strong");
+      name.textContent = plain(extra.label) || `추가 ${index + 1}`;
+      const detail = document.createElement("p");
+      detail.textContent = describeExtra(extra);
+      card.append(name, detail);
+      card.append(renderSlotPills(extra.slots || [], "시간 미정"));
+      list.append(card);
+    });
+    extrasBlock.append(list);
+    wrap.append(extrasBlock);
+  }
+  return wrap;
+}
+
+function renderKeyList(keys) {
+  const list = document.createElement("ul");
+  list.className = "status-list key-list";
+  checkApi.describe(state.config || {}, keys).forEach((item) => {
+    const row = document.createElement("li");
+    const name = document.createElement("strong");
+    name.textContent = plain(item.name) || item.id;
+    const meta = document.createElement("span");
+    meta.textContent = `${formatIsoDay(item.day)} (${item.weekday})  ${String(item.slot).replace("-", "–")}`;
+    row.append(name, meta);
+    list.append(row);
+  });
+  return list;
+}
+
+function foldSection(key, title, badge, buildBody) {
+  const open = Boolean(state.statusFold[key]);
+  const section = document.createElement("section");
+  section.className = "fold" + (open ? " open" : "");
+  const head = document.createElement("button");
+  head.type = "button";
+  head.className = "fold-head";
+  head.setAttribute("aria-expanded", open ? "true" : "false");
+  const label = document.createElement("span");
+  label.className = "fold-title";
+  label.textContent = title;
+  const right = document.createElement("span");
+  right.className = "fold-right";
+  if (badge) {
+    const mark = document.createElement("span");
+    mark.className = "fold-badge";
+    mark.textContent = badge;
+    right.append(mark);
+  }
+  const chevron = document.createElement("span");
+  chevron.className = "fold-chevron";
+  chevron.setAttribute("aria-hidden", "true");
+  chevron.textContent = open ? "▾" : "▸";
+  right.append(chevron);
+  head.append(label, right);
+  head.addEventListener("click", () => {
+    state.statusFold[key] = !state.statusFold[key];
+    render();
+  });
+  section.append(head);
+  if (open) {
+    const body = document.createElement("div");
+    body.className = "fold-body";
+    buildBody(body);
+    section.append(body);
+  }
+  return section;
+}
+
 function renderStatus() {
   const box = document.querySelector("#status");
   box.replaceChildren();
@@ -352,7 +517,6 @@ function renderStatus() {
     box.textContent = "아직 검사 기록이 없습니다.";
     return;
   }
-  const watches = Object.fromEntries(((state.config && state.config.watches) || []).map((watch) => [String(watch.id), watch]));
   const checked = document.createElement("p");
   checked.className = "status-line check-time";
   checked.textContent = `마지막 검사 ${current.last_check || "없음"}`;
@@ -363,22 +527,53 @@ function renderStatus() {
     error.textContent = plain(current.last_error);
     box.append(error);
   }
+
   const open = current.open_now || [];
-  const summary = document.createElement("p");
-  summary.className = "status-line";
-  summary.textContent = open.length ? `빈 시간 ${open.length}개` : "지금 빈 시간 없음";
-  box.append(summary);
-  if (!open.length) return;
-  const list = document.createElement("ul");
-  list.className = "status-list";
-  open.forEach((key) => {
-    const [id, day, slot] = key.split("|");
-    const item = document.createElement("li");
-    const name = plain((watches[id] || {}).name) || id;
-    item.textContent = `${name}  ${day}  ${slot}`;
-    list.append(item);
-  });
-  box.append(list);
+  const alerts = statusAlertKeys(current);
+  const history = (current.alert_history || []).filter(
+    (item) => item && Array.isArray(item.keys) && item.keys.length
+  );
+
+  box.append(
+    foldSection("alarm", "알람 · 이번 주기", String(alerts.length), (body) => {
+      if (!current.initialized) {
+        body.append(renderCheckLine("첫 검사라 비교할 이전 기록이 없습니다."));
+      } else if (!alerts.length) {
+        body.append(renderCheckLine("이번 주기에 보낼 알람이 없습니다."));
+      } else {
+        body.append(renderKeyList(alerts));
+      }
+    })
+  );
+
+  box.append(
+    foldSection("open", "빈 시간", String(open.length), (body) => {
+      if (!open.length) {
+        body.append(renderCheckLine("지금 빈 시간 없음"));
+      } else {
+        body.append(renderKeyList(open));
+      }
+    })
+  );
+
+  box.append(
+    foldSection("history", "알람 기록", `${Math.min(history.length, 10)}/10`, (body) => {
+      if (!history.length) {
+        body.append(renderCheckLine("아직 저장된 알람 기록이 없습니다."));
+        return;
+      }
+      history.slice(0, 10).forEach((entry) => {
+        const card = document.createElement("div");
+        card.className = "history-card";
+        const when = document.createElement("p");
+        when.className = "history-at";
+        when.textContent = entry.at || "시각 없음";
+        card.append(when);
+        card.append(renderKeyList(entry.keys || []));
+        body.append(card);
+      });
+    })
+  );
 }
 
 function seoulToday() {
@@ -812,23 +1007,7 @@ function renderGroupDetail() {
   );
 
   if (!state.editingGroupWatch) {
-    const info = document.createElement("div");
-    info.className = "info-grid";
-    info.append(
-      infoCard("평일 감시", groupWeekdaySlots(group).join(", ") || "없음", true),
-      infoCard("주말 감시", groupWeekendSlots(group).join(", ") || "없음", true)
-    );
-    const extras = groupExtras(group);
-    if (extras.length) {
-      info.append(
-        infoCard(
-          "추가 감시",
-          extras.map((item) => item.label || "추가").join(", ") || `${extras.length}개`,
-          true
-        )
-      );
-    }
-    watchSection.append(info);
+    watchSection.append(renderWatchSummary(group));
   } else {
     const weekdayLabel = document.createElement("p");
     weekdayLabel.className = "group-label";
@@ -1004,7 +1183,7 @@ function renderExtrasEditor(detail, group) {
       slots: [],
       replace: false,
     });
-    applyGroupExtras(group, extras);
+    if (!applyGroupExtras(group, extras)) return;
     render();
   });
   detail.append(add);

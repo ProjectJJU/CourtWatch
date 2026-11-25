@@ -21,6 +21,7 @@ from checker.logic import (
     observed_slots,
     overlaps,
     parse_event_titles,
+    record_alert_history,
     render_alert,
     render_open_now,
     within_hours,
@@ -94,12 +95,27 @@ class AlertTests(unittest.TestCase):
         state["slots"][key] = False
         sent = collect_alerts(state, {key: True}, False, "2026-11-14")
         self.assertEqual(sent, [key])
+        self.assertEqual(state["last_alerts"], [key])
+        record_alert_history(state, "2026-11-14 10:00:00")
+        self.assertEqual(state["alert_history"][0]["keys"], [key])
         acknowledge(state, sent)
         sent = collect_alerts(state, {key: True}, False, "2026-11-14")
         self.assertEqual(sent, [])
+        self.assertEqual(state["last_alerts"], [])
+        record_alert_history(state, "2026-11-14 10:01:00")
+        self.assertEqual(len(state["alert_history"]), 1)
         collect_alerts(state, {key: False}, False, "2026-11-14")
         sent = collect_alerts(state, {key: True}, False, "2026-11-14")
         self.assertEqual(sent, [key])
+        self.assertEqual(state["last_alerts"], [key])
+
+    def test_alert_history_keeps_ten(self):
+        state = fresh_state()
+        for index in range(12):
+            state["last_alerts"] = [f"73|2026-11-{20 + (index % 5)}|18:00-20:00"]
+            record_alert_history(state, f"2026-11-14 10:{index:02d}:00")
+        self.assertEqual(len(state["alert_history"]), 10)
+        self.assertEqual(state["alert_history"][0]["at"], "2026-11-14 10:11:00")
 
     def test_muted_queues_until_later(self):
         state = fresh_state()
@@ -108,6 +124,7 @@ class AlertTests(unittest.TestCase):
         state["slots"][key] = False
         sent = collect_alerts(state, {key: True}, True, "2026-11-14")
         self.assertEqual(sent, [])
+        self.assertEqual(state["last_alerts"], [key])
         self.assertIn(key, state["pending"])
         sent = collect_alerts(state, {key: True}, False, "2026-11-14")
         self.assertEqual(sent, [key])
