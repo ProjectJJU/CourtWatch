@@ -4,30 +4,22 @@ alerts_enabled: true
 sleep:
   start: "02:00"
   end: "06:00"
-presets:
-  - id: eve
-    label: "평일 저녁"
-    weekdays: [0, 1, 2, 3, 4]
-    slots: ["20:00-22:00"]
-  - id: morn
-    label: "주말 오전"
-    weekdays: [5, 6]
-    slots: ["08:00-10:00", "10:00-12:00"]
-  - id: all
-    label: "저녁 전체"
-    weekdays: [0, 1, 2, 3, 4, 5, 6]
-    slots: ["20:00-22:00"]
+presets: []
 booking_groups:
   - id: stadium
     name: "양산종합운동장"
     courts: [73]
     after_days: 2
     days: 29
+    open: "06:00"
+    close: "22:00"
   - id: sapryang
     name: "삽량체육공원"
     courts: [47, 64, 66, 67]
     after_days: 1
     days: 30
+    open: "08:00"
+    close: "22:00"
 watches:
   - id: 73
     name: "실내테니스장 시민C코트"
@@ -37,6 +29,8 @@ watches:
     close: "22:00"
     weekdays: [0, 1, 2, 3, 4]
     slots: ["20:00-22:00"]
+    weekday_slots: ["20:00-22:00"]
+    weekend_slots: []
   - id: 47
     name: "테니스장(3번)(인조잔디)"
     url: "https://www.yssisul.or.kr/rent/#/47/rent/step1"
@@ -45,6 +39,8 @@ watches:
     close: "22:00"
     weekdays: [0, 1, 2, 3, 4]
     slots: ["20:00-22:00"]
+    weekday_slots: ["20:00-22:00"]
+    weekend_slots: []
   - id: 64
     name: "테니스장(4번)(인조잔디)"
     url: "https://www.yssisul.or.kr/rent/#/64/rent/step1"
@@ -53,6 +49,8 @@ watches:
     close: "22:00"
     weekdays: [0, 1, 2, 3, 4]
     slots: ["20:00-22:00"]
+    weekday_slots: ["20:00-22:00"]
+    weekend_slots: []
   - id: 66
     name: "테니스장(7번)(하드코트)"
     url: "https://www.yssisul.or.kr/rent/#/66/rent/step1"
@@ -61,6 +59,8 @@ watches:
     close: "22:00"
     weekdays: [0, 1, 2, 3, 4]
     slots: ["20:00-22:00"]
+    weekday_slots: ["20:00-22:00"]
+    weekend_slots: []
   - id: 67
     name: "테니스장(8번)(하드코트)"
     url: "https://www.yssisul.or.kr/rent/#/67/rent/step1"
@@ -69,3 +69,5 @@ watches:
     close: "22:00"
     weekdays: [0, 1, 2, 3, 4]
     slots: ["20:00-22:00"]
+    weekday_slots: ["20:00-22:00"]
+    weekend_slots: []

@@ -131,6 +131,19 @@
     return dates;
   }
 
+  function slotsForDay(watch, weekday) {
+    const hasSplit =
+      Object.prototype.hasOwnProperty.call(watch, "weekday_slots") ||
+      Object.prototype.hasOwnProperty.call(watch, "weekend_slots");
+    if (hasSplit) {
+      if (weekday < 5) return [...(watch.weekday_slots || [])].map(String);
+      return [...(watch.weekend_slots || [])].map(String);
+    }
+    const weekdays = new Set((watch.weekdays || []).map(Number));
+    if (!weekdays.has(weekday)) return [];
+    return [...(watch.slots || [])].map(String);
+  }
+
   function openKeys(config, calendars, todayIso) {
     const keys = [];
     (config.watches || []).forEach((watch) => {
@@ -141,13 +154,12 @@
       const calendar = calendars[courtId] || {};
       const ranges = calendar.ranges || {};
       const rest = calendar.rest instanceof Set ? calendar.rest : new Set(calendar.rest || []);
-      const weekdays = new Set((watch.weekdays || []).map(Number));
       let cursor = window.start;
       while (cursor <= window.end) {
         const current = cursor;
         cursor = addDays(cursor, 1);
-        if (!weekdays.has(weekdayIndex(current))) continue;
-        (watch.slots || []).forEach((slot) => {
+        const slots = slotsForDay(watch, weekdayIndex(current));
+        slots.forEach((slot) => {
           if (!withinHours(slot, watch.open || "06:00", watch.close || "22:00")) return;
           if (rest.has(current)) return;
           const busy = (ranges[current] || []).some((range) => overlaps(slot, range[0], range[1]));

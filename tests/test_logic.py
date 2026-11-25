@@ -213,6 +213,29 @@ class CalendarTests(unittest.TestCase):
         }
         self.assertEqual(observed_slots(config, {"47": {}}, date(2026, 11, 14)), {})
 
+    def test_weekday_and_weekend_slots_differ(self):
+        friday = date(2026, 11, 20)
+        saturday = date(2026, 11, 21)
+        config = {
+            "booking_groups": [{"courts": [73], "after_days": 0, "days": 2}],
+            "watches": [
+                {
+                    "id": 73,
+                    "enabled": True,
+                    "open": "06:00",
+                    "close": "22:00",
+                    "weekday_slots": ["20:00-22:00"],
+                    "weekend_slots": ["08:00-10:00"],
+                }
+            ],
+        }
+        calendars = {"73": _open_days(friday, saturday)}
+        observed = observed_slots(config, calendars, friday)
+        self.assertTrue(observed["73|2026-11-20|20:00-22:00"])
+        self.assertNotIn("73|2026-11-20|08:00-10:00", observed)
+        self.assertTrue(observed["73|2026-11-21|08:00-10:00"])
+        self.assertNotIn("73|2026-11-21|20:00-22:00", observed)
+
     def test_booking_groups_limit_each_court(self):
         today = date(2026, 11, 15)
         config = {

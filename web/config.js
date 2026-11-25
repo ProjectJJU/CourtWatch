@@ -124,15 +124,31 @@
     config.alerts_enabled = config.alerts_enabled !== false;
     config.sleep = config.sleep || { start: "02:00", end: "02:00" };
     config.presets = config.presets || [];
-    config.watches = config.watches || [];
+    config.watches = (config.watches || []).map(normalizeWatch);
     config.booking_groups = normalizeGroups(config.booking_groups);
     return config;
   }
 
   function defaultGroups() {
     return [
-      { id: "stadium", name: "양산종합운동장", courts: [73], after_days: 2, days: 29 },
-      { id: "sapryang", name: "삽량체육공원", courts: [47, 64, 66, 67], after_days: 1, days: 30 },
+      {
+        id: "stadium",
+        name: "양산종합운동장",
+        courts: [73],
+        after_days: 2,
+        days: 29,
+        open: "06:00",
+        close: "22:00",
+      },
+      {
+        id: "sapryang",
+        name: "삽량체육공원",
+        courts: [47, 64, 66, 67],
+        after_days: 1,
+        days: 30,
+        open: "08:00",
+        close: "22:00",
+      },
     ];
   }
 
@@ -144,7 +160,39 @@
       courts: (group.courts || []).map(Number),
       after_days: clamp(group.after_days, 0, 60, 0),
       days: clamp(group.days, 1, 60, 1),
+      open: group.open || "06:00",
+      close: group.close || "22:00",
     }));
+  }
+
+  function normalizeWatch(watch) {
+    const next = { ...(watch || {}) };
+    next.id = Number(next.id);
+    next.enabled = next.enabled !== false;
+    next.open = next.open || "06:00";
+    next.close = next.close || "22:00";
+    const hasSplit =
+      Object.prototype.hasOwnProperty.call(next, "weekday_slots") ||
+      Object.prototype.hasOwnProperty.call(next, "weekend_slots");
+    if (!hasSplit) {
+      const days = new Set((next.weekdays || []).map(Number));
+      const slots = [...(next.slots || [])];
+      const weekdayDays = [0, 1, 2, 3, 4].filter((day) => days.has(day));
+      const weekendDays = [5, 6].filter((day) => days.has(day));
+      next.weekday_slots = weekdayDays.length ? slots : [];
+      next.weekend_slots = weekendDays.length ? slots : [];
+    } else {
+      next.weekday_slots = [...(next.weekday_slots || [])];
+      next.weekend_slots = [...(next.weekend_slots || [])];
+    }
+    const weekdays = [];
+    if ((next.weekday_slots || []).length) weekdays.push(0, 1, 2, 3, 4);
+    if ((next.weekend_slots || []).length) weekdays.push(5, 6);
+    next.weekdays = weekdays;
+    next.slots = [
+      ...new Set([...(next.weekday_slots || []), ...(next.weekend_slots || [])]),
+    ].sort();
+    return next;
   }
 
   function clamp(value, min, max, fallback) {
@@ -190,9 +238,11 @@
       lines.push(`    courts: ${dumpFlow((group.courts || []).map(Number))}`);
       lines.push(`    after_days: ${group.after_days}`);
       lines.push(`    days: ${group.days}`);
+      lines.push(`    open: ${quote(group.open || "06:00")}`);
+      lines.push(`    close: ${quote(group.close || "22:00")}`);
     });
     lines.push("watches:");
-    (config.watches || []).forEach((watch) => {
+    (config.watches || []).map(normalizeWatch).forEach((watch) => {
       const fields = [
         `id: ${Number(watch.id)}`,
         `name: ${quote(watch.name || "")}`,
@@ -202,6 +252,8 @@
         `close: ${quote(watch.close || "22:00")}`,
         `weekdays: ${dumpFlow((watch.weekdays || []).map(Number))}`,
         `slots: ${dumpFlow(watch.slots || [])}`,
+        `weekday_slots: ${dumpFlow(watch.weekday_slots || [])}`,
+        `weekend_slots: ${dumpFlow(watch.weekend_slots || [])}`,
       ];
       fields.forEach((field, index) => {
         lines.push((index === 0 ? "  - " : "    ") + field);
@@ -249,17 +301,17 @@
     return { id: Number(match[1]), url: COURT_URL.replace("{id}", match[1]) };
   }
 
-  function defaultWatch(id, url) {
-    return {
+  function defaultWatch(id, url, extras) {
+    return normalizeWatch({
       id: id,
       name: `코트 ${id}`,
       url: url,
       enabled: true,
-      open: "06:00",
-      close: "22:00",
-      weekdays: [0, 1, 2, 3, 4],
-      slots: ["20:00-22:00"],
-    };
+      open: (extras && extras.open) || "06:00",
+      close: (extras && extras.close) || "22:00",
+      weekday_slots: (extras && extras.weekday_slots) || ["20:00-22:00"],
+      weekend_slots: (extras && extras.weekend_slots) || [],
+    });
   }
 
   function formatWeekdays(days) {
@@ -277,6 +329,8 @@
     menuSlots,
     parseCourtAddress,
     defaultWatch,
+    normalizeGroups,
+    normalizeWatch,
     formatWeekdays,
     hmToMinutes,
   };

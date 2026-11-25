@@ -95,31 +95,18 @@
     </div>
   </section>
 
-  <section class="card" id="booking-card" hidden>
+  <section class="card" id="groups-card" hidden>
     <div class="title-row">
-      <h2>예약 기간</h2>
+      <h2>그룹</h2>
       <span class="tag real">저장하면 적용</span>
     </div>
-    <p class="hint">오늘을 기준으로, 예약이 열리는 첫날과 며칠 동안 볼지를 그룹마다 정합니다. 저장을 눌러야 다음 검사부터 적용됩니다.</p>
-    <div id="booking-groups"></div>
-  </section>
-
-  <section class="card" id="court-card" hidden>
-    <div class="section-head">
-      <div>
-        <div class="title-row">
-          <h2>코트</h2>
-          <span class="tag real">저장하면 적용</span>
-        </div>
-        <p class="hint">번호만 적어도 추가됩니다. 목록을 고친 뒤 저장을 눌러야 다음 검사부터 적용됩니다.</p>
-      </div>
-      <div class="add-row">
-        <input id="add-address" placeholder="코트 번호" inputmode="numeric" autocomplete="off">
-        <button type="button" id="add-button">추가</button>
-      </div>
+    <p class="hint">양산종합운동장, 삽량체육공원처럼 그룹을 고릅니다. 평일·주말 감시 시간은 바로 고치고, 예약 기간·코트 번호·운영 시간은 수정을 누른 뒤에만 바꿉니다.</p>
+    <div class="add-row">
+      <input id="add-group-name" placeholder="그룹 이름" autocomplete="off">
+      <button type="button" id="add-group-button">그룹 추가</button>
     </div>
-    <div id="court-list" class="court-list"></div>
-    <div id="court-detail"></div>
+    <div id="group-list" class="court-list"></div>
+    <div id="group-detail"></div>
     <div class="save-footer">
       <button type="button" class="save-button primary" hidden>저장</button>
     </div>

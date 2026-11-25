@@ -225,7 +225,30 @@ button.danger {
   border-top: 1px solid var(--line);
 }
 
-.day-presets, .presets { margin-bottom: 8px; }
+.info-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.info-line strong {
+  color: var(--ink);
+  font-weight: 650;
+  text-align: right;
+}
+
+.detail h3 {
+  margin: 0;
+  flex: 1;
+  font-size: 1.05rem;
+}
+
+.court-edit input { min-width: 0; flex: 1; }
+
+.court-edit button { flex: none; }
 
 .weekdays {
   display: grid;

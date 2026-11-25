@@ -200,6 +200,18 @@ def crawl_end(config: dict, today: date) -> date:
     return end
 
 
+def slots_for_day(watch: dict, weekday: int) -> list[str]:
+    has_split = "weekday_slots" in watch or "weekend_slots" in watch
+    if has_split:
+        if weekday < 5:
+            return [str(slot) for slot in watch.get("weekday_slots") or []]
+        return [str(slot) for slot in watch.get("weekend_slots") or []]
+    weekdays = {int(day) for day in watch.get("weekdays") or []}
+    if weekday not in weekdays:
+        return []
+    return [str(slot) for slot in watch.get("slots") or []]
+
+
 def observed_slots(config: dict, calendars: dict, today: date) -> dict[str, bool]:
     observed: dict[str, bool] = {}
     for watch in config.get("watches", []):
@@ -211,18 +223,16 @@ def observed_slots(config: dict, calendars: dict, today: date) -> dict[str, bool
             continue
         start, end = window
         days = calendars.get(court_id, {})
-        weekdays = set(int(day) for day in watch.get("weekdays", []))
         current = start
         while current <= end:
-            if current.weekday() not in weekdays:
-                current += timedelta(days=1)
-                continue
+            weekday = current.weekday()
+            slots = slots_for_day(watch, weekday)
             iso = current.isoformat()
             info = days.get(iso)
             current += timedelta(days=1)
-            if not info:
+            if not slots or not info:
                 continue
-            for slot in watch.get("slots", []):
+            for slot in slots:
                 if not within_hours(slot, watch.get("open", "06:00"), watch.get("close", "22:00")):
                     continue
                 key = slot_key(court_id, iso, slot)
