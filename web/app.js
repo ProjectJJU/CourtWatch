@@ -40,7 +40,7 @@ function firebaseReady() {
 
 function firebaseMessage(error) {
   const code = error && error.code;
-  if (code === "permission-denied") return "이 계정은 설정을 읽을 수 없습니다.";
+  if (code === "permission-denied") return "이 계정은 설정을 고칠 수 없습니다.";
   if (code === "auth/popup-closed-by-user" || code === "auth/redirect-cancelled-by-user") {
     return "로그인을 취소했습니다.";
   }
@@ -77,14 +77,12 @@ async function loadDocs() {
   say("불러왔습니다.");
 }
 
+function loggedIn() {
+  return Boolean(auth && auth.currentUser);
+}
+
 async function signedIn(user) {
   showAccount(user);
-  if (!user) {
-    state.config = null;
-    state.status = null;
-    render();
-    return;
-  }
   await loadDocs();
 }
 
@@ -209,7 +207,7 @@ async function runCheck(word) {
     return;
   }
   if (!state.config) {
-    say("먼저 로그인하세요.");
+    say("아직 설정이 없습니다.");
     return;
   }
   const button = document.querySelector("#check-form button");
@@ -235,7 +233,7 @@ function renderStatus() {
     box.textContent = "아직 검사 기록이 없습니다.";
     return;
   }
-  const watches = Object.fromEntries((state.config.watches || []).map((watch) => [String(watch.id), watch]));
+  const watches = Object.fromEntries(((state.config && state.config.watches) || []).map((watch) => [String(watch.id), watch]));
   const checked = document.createElement("p");
   checked.className = "status-line check-time";
   checked.textContent = `마지막 검사 ${current.last_check || "없음"}`;
@@ -523,15 +521,15 @@ function setDays(days) {
 }
 
 function render() {
-  const ready = Boolean(state.config);
-  document.querySelector("#general-card").hidden = !ready;
-  document.querySelector("#booking-card").hidden = !ready;
-  document.querySelector("#court-card").hidden = !ready;
+  const canEdit = loggedIn() && Boolean(state.config);
+  document.querySelector("#general-card").hidden = !canEdit;
+  document.querySelector("#booking-card").hidden = !canEdit;
+  document.querySelector("#court-card").hidden = !canEdit;
   document.querySelectorAll(".save-button").forEach((button) => {
-    button.hidden = !ready;
+    button.hidden = !canEdit;
   });
   renderStatus();
-  if (!ready) return;
+  if (!canEdit) return;
   renderGeneral();
   renderBooking();
   renderCourts();

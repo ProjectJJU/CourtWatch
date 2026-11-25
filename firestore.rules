@@ -7,7 +7,7 @@ service cloud.firestore {
     }
 
     match /courtwatch/{docId} {
-      allow read: if isOwner();
+      allow read: if docId == "config" || docId == "state";
       allow create, update: if isOwner() && docId == "config";
       allow delete: if false;
     }
