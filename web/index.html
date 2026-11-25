@@ -45,18 +45,7 @@
       <p class="guest-note" id="guest-note">설정을 고치려면 오른쪽 위 계정 아이콘으로 로그인하세요.</p>
 
       <section class="panel global-panel" id="general-card" hidden>
-        <div class="panel-head">
-          <div>
-            <h2>전체 알림</h2>
-            <p class="hint">모든 코트에 같이 적용됩니다.</p>
-          </div>
-          <button type="button" id="alert-toggle" class="toggle"></button>
-        </div>
-        <div class="time-row">
-          <label>수면 시작<input id="sleep-start" type="time"></label>
-          <label>수면 끝<input id="sleep-end" type="time"></label>
-          <button type="button" id="sleep-apply" class="ghost">적용</button>
-        </div>
+        <div id="general-detail"></div>
       </section>
 
       <section class="workspace" id="workspace" hidden>
@@ -89,6 +78,7 @@
       </button>
     </form>
     <p class="hint">코트와 감시 시간을 고칠 때만 로그인합니다. 최근 검사는 로그인 없이도 보입니다.</p>
+    <p id="account-message" class="sheet-message" role="status"></p>
     <form id="sign-in-form" class="stack">
       <div class="field">
         <span class="field-label">이메일</span>
@@ -115,6 +105,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
     </form>
+    <p id="tools-message" class="sheet-message" role="status"></p>
     <section class="sheet-block">
       <h3>이 화면에서 빈 시간 보기</h3>
       <p class="hint">알림 없이, 마지막 검사 기록으로만 계산합니다.</p>

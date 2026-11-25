@@ -200,7 +200,7 @@ def crawl_end(config: dict, today: date) -> date:
     return end
 
 
-def slots_for_day(watch: dict, weekday: int) -> list[str]:
+def base_slots_for_day(watch: dict, weekday: int) -> list[str]:
     has_split = "weekday_slots" in watch or "weekend_slots" in watch
     if has_split:
         if weekday < 5:
@@ -210,6 +210,40 @@ def slots_for_day(watch: dict, weekday: int) -> list[str]:
     if weekday not in weekdays:
         return []
     return [str(slot) for slot in watch.get("slots") or []]
+
+
+def _extra_matches(extra: dict, weekday: int, day_iso: str) -> bool:
+    dates = {str(item) for item in extra.get("dates") or []}
+    days = {int(item) for item in extra.get("weekdays") or []}
+    if day_iso in dates:
+        return True
+    if days and weekday in days:
+        return True
+    return False
+
+
+def slots_for_day(watch: dict, weekday: int, day_iso: str | None = None) -> list[str]:
+    base = base_slots_for_day(watch, weekday)
+    extras = [item for item in watch.get("extras") or [] if isinstance(item, dict)]
+    if not extras:
+        return base
+    iso = day_iso or ""
+    matched = [item for item in extras if _extra_matches(item, weekday, iso)]
+    if not matched:
+        return base
+    add_slots: list[str] = []
+    replace_slots: list[str] = []
+    replaced = False
+    for extra in matched:
+        slots = [str(slot) for slot in extra.get("slots") or []]
+        if extra.get("replace"):
+            replaced = True
+            replace_slots.extend(slots)
+        else:
+            add_slots.extend(slots)
+    if replaced:
+        return sorted(set(replace_slots + add_slots))
+    return sorted(set(base + add_slots))
 
 
 def observed_slots(config: dict, calendars: dict, today: date) -> dict[str, bool]:
@@ -226,8 +260,8 @@ def observed_slots(config: dict, calendars: dict, today: date) -> dict[str, bool
         current = start
         while current <= end:
             weekday = current.weekday()
-            slots = slots_for_day(watch, weekday)
             iso = current.isoformat()
+            slots = slots_for_day(watch, weekday, iso)
             info = days.get(iso)
             current += timedelta(days=1)
             if not slots or not info:

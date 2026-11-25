@@ -8,6 +8,7 @@ const state = {
   status: null,
   selectedGroup: 0,
   editingGroup: false,
+  editingGeneral: false,
 };
 let auth = null;
 let db = null;
@@ -16,6 +17,16 @@ const message = document.querySelector("#message");
 
 function say(text) {
   message.textContent = text || "";
+}
+
+function sayAccount(text) {
+  const box = document.querySelector("#account-message");
+  if (box) box.textContent = text || "";
+}
+
+function sayTools(text) {
+  const box = document.querySelector("#tools-message");
+  if (box) box.textContent = text || "";
 }
 
 function storageKey(name) {
@@ -660,6 +671,7 @@ function renderGroupDetail() {
             close: group.close,
             weekday_slots: groupWeekdaySlots(group),
             weekend_slots: groupWeekendSlots(group),
+            extras: groupExtras(group),
           })
         );
         group.courts = [...(group.courts || []).map(Number), parsed.id];

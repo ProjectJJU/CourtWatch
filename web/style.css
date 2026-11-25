@@ -342,6 +342,30 @@ input {
 
 .court-edit input { min-width: 0; }
 
+.extras-list {
+  display: grid;
+  gap: 10px;
+}
+
+.extra-card {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #f7fbf8;
+  display: grid;
+  gap: 10px;
+}
+
+.date-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.day-chips {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
 .global-panel {
   margin-bottom: 14px;
 }

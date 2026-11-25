@@ -165,6 +165,18 @@
     }));
   }
 
+  function normalizeExtra(extra) {
+    const next = { ...(extra || {}) };
+    next.label = String(next.label || "").trim();
+    next.weekdays = [...new Set((next.weekdays || []).map(Number).filter((day) => day >= 0 && day <= 6))].sort(
+      (a, b) => a - b
+    );
+    next.dates = [...new Set((next.dates || []).map(String).filter((day) => /^\d{4}-\d{2}-\d{2}$/.test(day)))].sort();
+    next.slots = [...new Set((next.slots || []).map(String))].sort();
+    next.replace = Boolean(next.replace);
+    return next;
+  }
+
   function normalizeWatch(watch) {
     const next = { ...(watch || {}) };
     next.id = Number(next.id);
@@ -185,13 +197,22 @@
       next.weekday_slots = [...(next.weekday_slots || [])];
       next.weekend_slots = [...(next.weekend_slots || [])];
     }
+    const rawExtras = Array.isArray(next.extras) ? next.extras : [];
+    next.extras = rawExtras.map(normalizeExtra).filter(
+      (extra) =>
+        extra.label || extra.weekdays.length || extra.dates.length || extra.slots.length
+    );
     const weekdays = [];
     if ((next.weekday_slots || []).length) weekdays.push(0, 1, 2, 3, 4);
     if ((next.weekend_slots || []).length) weekdays.push(5, 6);
-    next.weekdays = weekdays;
-    next.slots = [
-      ...new Set([...(next.weekday_slots || []), ...(next.weekend_slots || [])]),
-    ].sort();
+    next.extras.forEach((extra) => weekdays.push(...extra.weekdays));
+    next.weekdays = [...new Set(weekdays)].sort((a, b) => a - b);
+    const allSlots = [
+      ...(next.weekday_slots || []),
+      ...(next.weekend_slots || []),
+      ...next.extras.flatMap((extra) => extra.slots),
+    ];
+    next.slots = [...new Set(allSlots)].sort();
     return next;
   }
 
@@ -258,6 +279,16 @@
       fields.forEach((field, index) => {
         lines.push((index === 0 ? "  - " : "    ") + field);
       });
+      if ((watch.extras || []).length) {
+        lines.push("    extras:");
+        (watch.extras || []).forEach((extra) => {
+          lines.push(`      - label: ${quote(extra.label || "")}`);
+          lines.push(`        weekdays: ${dumpFlow((extra.weekdays || []).map(Number))}`);
+          lines.push(`        dates: ${dumpFlow(extra.dates || [])}`);
+          lines.push(`        slots: ${dumpFlow(extra.slots || [])}`);
+          lines.push(`        replace: ${extra.replace ? "true" : "false"}`);
+        });
+      }
     });
     return lines.join("\n") + "\n";
   }
@@ -311,6 +342,7 @@
       close: (extras && extras.close) || "22:00",
       weekday_slots: (extras && extras.weekday_slots) || ["20:00-22:00"],
       weekend_slots: (extras && extras.weekend_slots) || [],
+      extras: (extras && extras.extras) || [],
     });
   }
 
@@ -331,6 +363,7 @@
     defaultWatch,
     normalizeGroups,
     normalizeWatch,
+    normalizeExtra,
     formatWeekdays,
     hmToMinutes,
   };

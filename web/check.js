@@ -131,7 +131,7 @@
     return dates;
   }
 
-  function slotsForDay(watch, weekday) {
+  function baseSlotsForDay(watch, weekday) {
     const hasSplit =
       Object.prototype.hasOwnProperty.call(watch, "weekday_slots") ||
       Object.prototype.hasOwnProperty.call(watch, "weekend_slots");
@@ -142,6 +142,36 @@
     const weekdays = new Set((watch.weekdays || []).map(Number));
     if (!weekdays.has(weekday)) return [];
     return [...(watch.slots || [])].map(String);
+  }
+
+  function extraMatches(extra, weekday, dayIso) {
+    const dates = new Set((extra.dates || []).map(String));
+    const days = new Set((extra.weekdays || []).map(Number));
+    if (dates.has(String(dayIso))) return true;
+    if (days.size && days.has(weekday)) return true;
+    return false;
+  }
+
+  function slotsForDay(watch, weekday, dayIso) {
+    const base = baseSlotsForDay(watch, weekday);
+    const extras = (watch.extras || []).filter((item) => item && typeof item === "object");
+    if (!extras.length) return base;
+    const matched = extras.filter((item) => extraMatches(item, weekday, dayIso || ""));
+    if (!matched.length) return base;
+    const add = [];
+    const replace = [];
+    let replaced = false;
+    matched.forEach((extra) => {
+      const slots = [...(extra.slots || [])].map(String);
+      if (extra.replace) {
+        replaced = true;
+        replace.push(...slots);
+      } else {
+        add.push(...slots);
+      }
+    });
+    if (replaced) return [...new Set([...replace, ...add])].sort();
+    return [...new Set([...base, ...add])].sort();
   }
 
   function openKeys(config, calendars, todayIso) {
@@ -158,7 +188,7 @@
       while (cursor <= window.end) {
         const current = cursor;
         cursor = addDays(cursor, 1);
-        const slots = slotsForDay(watch, weekdayIndex(current));
+        const slots = slotsForDay(watch, weekdayIndex(current), current);
         slots.forEach((slot) => {
           if (!withinHours(slot, watch.open || "06:00", watch.close || "22:00")) return;
           if (rest.has(current)) return;

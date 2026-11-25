@@ -236,6 +236,43 @@ class CalendarTests(unittest.TestCase):
         self.assertTrue(observed["73|2026-11-21|08:00-10:00"])
         self.assertNotIn("73|2026-11-21|20:00-22:00", observed)
 
+    def test_extra_slots_add_and_replace(self):
+        friday = date(2026, 11, 20)
+        wednesday = date(2026, 11, 18)
+        config = {
+            "booking_groups": [{"courts": [73], "after_days": 0, "days": 5}],
+            "watches": [
+                {
+                    "id": 73,
+                    "enabled": True,
+                    "open": "06:00",
+                    "close": "22:00",
+                    "weekday_slots": ["20:00-22:00"],
+                    "weekend_slots": [],
+                    "extras": [
+                        {
+                            "weekdays": [2],
+                            "dates": [],
+                            "slots": ["18:00-20:00"],
+                            "replace": False,
+                        },
+                        {
+                            "weekdays": [],
+                            "dates": ["2026-11-20"],
+                            "slots": ["10:00-12:00"],
+                            "replace": True,
+                        },
+                    ],
+                }
+            ],
+        }
+        calendars = {"73": _open_days(wednesday, friday)}
+        observed = observed_slots(config, calendars, wednesday)
+        self.assertTrue(observed["73|2026-11-18|20:00-22:00"])
+        self.assertTrue(observed["73|2026-11-18|18:00-20:00"])
+        self.assertTrue(observed["73|2026-11-20|10:00-12:00"])
+        self.assertNotIn("73|2026-11-20|20:00-22:00", observed)
+
     def test_booking_groups_limit_each_court(self):
         today = date(2026, 11, 15)
         config = {
