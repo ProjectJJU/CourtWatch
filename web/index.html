@@ -24,9 +24,13 @@
       <h2>계정</h2>
       <span class="tag real">실제</span>
     </div>
-    <p class="hint">코트와 알림 시간을 고칠 때 로그인합니다. 최근 검사 기록은 로그인하지 않아도 보입니다.</p>
+    <p class="hint">코트와 알림 시간을 고칠 때 이메일과 비밀번호로 로그인합니다. 최근 검사 기록은 로그인하지 않아도 보입니다.</p>
+    <form id="sign-in-form" class="grid">
+      <label>이메일<input id="email" type="email" autocomplete="username" placeholder="jinid231@gmail.com"></label>
+      <label>비밀번호<input id="password" type="password" autocomplete="current-password" placeholder="비밀번호"></label>
+    </form>
     <div class="row">
-      <button type="button" id="sign-in-button">Google로 로그인</button>
+      <button type="submit" form="sign-in-form" id="sign-in-button">로그인</button>
       <button type="button" id="sign-out-button" class="secondary" hidden>로그아웃</button>
     </div>
     <p id="account" class="hint"></p>

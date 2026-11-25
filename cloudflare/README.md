@@ -39,16 +39,16 @@ ntfy는 Worker가 보내지 않습니다. 검사가 GitHub 비밀값 `NTFY_TOPIC
 
 ## Firestore
 
-설정과 검사 기록은 git에 커밋하지 않습니다. `courtwatch/config`와 `courtwatch/state` 두 문서를 Firestore에 둡니다. 설정 페이지는 로그인 없이 두 문서를 읽습니다. Google 로그인은 `config`를 고칠 때만 필요합니다. 검사는 서비스 계정으로 `state`를 쓰고, 코트 이름이 바뀐 경우에만 `config`를 고칩니다. `config` 문서가 없으면 첫 검사가 저장소의 `config.yaml`을 올립니다. 그 파일은 시드로 저장소에 남고, 그 다음부터의 설정은 Firestore만 봅니다. `state/slots.json`은 저장소에 넣지 않습니다.
+설정과 검사 기록은 git에 커밋하지 않습니다. `courtwatch/config`와 `courtwatch/state` 두 문서를 Firestore에 둡니다. 설정 페이지는 로그인 없이 두 문서를 읽습니다. 이메일·비밀번호 로그인은 `config`를 고칠 때만 필요합니다. 검사는 서비스 계정으로 `state`를 쓰고, 코트 이름이 바뀐 경우에만 `config`를 고칩니다. `config` 문서가 없으면 첫 검사가 저장소의 `config.yaml`을 올립니다. 그 파일은 시드로 저장소에 남고, 그 다음부터의 설정은 Firestore만 봅니다. `state/slots.json`은 저장소에 넣지 않습니다.
 
 Firebase 프로젝트는 Planner와 Tracker(`local-web-92324`, `core-robotics-sw`)와 따로 만듭니다. Spark 무료 한도를 같이 쓰지 않기 위해서입니다. 전화 인증, Cloud Functions, Storage는 쓰지 않습니다.
 
 1. Firebase 콘솔에서 프로젝트를 만들고 Firestore를 만듭니다. 위치는 쓰는 리전으로 둡니다.
-2. Authentication에서 Google 로그인을 켭니다. 승인된 도메인에 GitHub Pages 호스트와, 로컬에서 볼 때는 `localhost`를 넣습니다.
+2. Authentication에서 **이메일/비밀번호**를 켭니다. Google 로그인은 쓰지 않습니다. Users에서 주인 계정을 하나 만듭니다. 이메일은 `jinid231@gmail.com`, 비밀번호는 직접 정합니다.
 3. 프로젝트 설정의 웹 앱 값 여섯 개(`apiKey`, `authDomain`, `projectId`, `storageBucket`, `messagingSenderId`, `appId`)를 `web/firebase-config.js`에 넣습니다. 이 값들은 페이지에 그대로 나가고 비밀키가 아닙니다. 비어 있으면 설정 페이지는 "Firebase가 설정되지 않았습니다"에서 멈춥니다.
-4. `firestore.rules`의 이메일이 로그인할 Google 계정과 같은지 확인합니다. 지금은 `jinid231@gmail.com`입니다. 다른 계정이면 그 문자열만 바꿉니다.
-5. 이 폴더에서 `firebase deploy --only firestore:rules`로 규칙을 배포합니다. 규칙을 배포하지 않으면 페이지에서의 읽기와 쓰기가 거부됩니다. 서비스 계정 쓰기는 규칙을 지나갑니다.
+4. `firestore.rules`의 이메일이 위 계정과 같은지 확인합니다. 지금은 `jinid231@gmail.com`입니다. 다른 계정이면 그 문자열만 바꿉니다.
+5. 이 폴더에서 `firebase deploy --only firestore:rules`로 규칙을 배포합니다. 규칙을 배포하지 않으면 페이지에서의 쓰기가 거부됩니다. 서비스 계정 쓰기는 규칙을 지나갑니다.
 6. 서비스 계정을 만들고 역할은 Cloud Datastore User로 둡니다. JSON 키 전체를 GitHub Actions 비밀값 `FIREBASE_SERVICE_ACCOUNT`에 넣습니다. 키 파일은 저장소에 넣지 않습니다.
-7. 설정 페이지는 로그인 없이 검사 기록과 설정을 보여 줍니다. Google로 로그인한 주인만 `config`를 고칩니다. `state`는 검사가 씁니다.
+7. 설정 페이지는 로그인 없이 검사 기록과 설정을 보여 줍니다. 이메일로 로그인한 주인만 `config`를 고칩니다. `state`는 검사가 씁니다.
 
 `FIREBASE_SERVICE_ACCOUNT`가 없는 GitHub Actions 검사는 실패합니다. 그 값을 넣지 않은 로컬 실행은 예전처럼 `config.yaml`과 `state/slots.json`을 사용합니다.

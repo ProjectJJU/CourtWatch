@@ -41,17 +41,21 @@ function firebaseReady() {
 function firebaseMessage(error) {
   const code = error && error.code;
   if (code === "permission-denied") return "이 계정은 설정을 고칠 수 없습니다.";
-  if (code === "auth/popup-closed-by-user" || code === "auth/redirect-cancelled-by-user") {
-    return "로그인을 취소했습니다.";
+  if (code === "auth/invalid-email") return "이메일 형식이 올바르지 않습니다.";
+  if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
+    return "이메일 또는 비밀번호가 맞지 않습니다.";
   }
+  if (code === "auth/too-many-requests") return "로그인을 너무 많이 시도했습니다. 잠시 후 다시 하세요.";
   return (error && error.message) || "Firebase 요청에 실패했습니다.";
 }
 
 function showAccount(user) {
   const account = document.querySelector("#account");
+  const signInForm = document.querySelector("#sign-in-form");
   const signInButton = document.querySelector("#sign-in-button");
   const signOutButton = document.querySelector("#sign-out-button");
   account.textContent = user && user.email ? user.email : "";
+  signInForm.hidden = Boolean(user);
   signInButton.hidden = Boolean(user);
   signOutButton.hidden = !user;
 }
@@ -86,25 +90,21 @@ async function signedIn(user) {
   await loadDocs();
 }
 
-const SIGN_IN_ORIGIN = "https://court-checker-30611.firebaseapp.com";
-
-function onSignInHost() {
-  return location.hostname === "court-checker-30611.firebaseapp.com";
-}
-
 async function signIn() {
   saveLocal();
-  if (!onSignInHost()) {
-    location.assign(SIGN_IN_ORIGIN + "/?login=1");
-    return;
-  }
   if (!auth) {
     say("Firebase가 설정되지 않았습니다");
     return;
   }
-  sessionStorage.setItem("courtwatch.loginStarted", "1");
-  const provider = new firebase.auth.GoogleAuthProvider();
-  await auth.signInWithRedirect(provider);
+  const email = document.querySelector("#email").value.trim();
+  const password = document.querySelector("#password").value;
+  if (!email || !password) {
+    say("이메일과 비밀번호를 입력하세요.");
+    return;
+  }
+  await auth.signInWithEmailAndPassword(email, password);
+  document.querySelector("#password").value = "";
+  say("로그인했습니다.");
 }
 
 async function saveRepo() {
@@ -549,7 +549,8 @@ document.querySelector("#check-form").addEventListener("submit", (event) => {
   const word = input.value;
   runCheck(word).catch(() => say("예약 정보를 읽지 못했습니다"));
 });
-document.querySelector("#sign-in-button").addEventListener("click", () => {
+document.querySelector("#sign-in-form").addEventListener("submit", (event) => {
+  event.preventDefault();
   signIn().catch((error) => say(firebaseMessage(error)));
 });
 document.querySelector("#sign-out-button").addEventListener("click", () => {
@@ -613,19 +614,7 @@ if (!firebaseReady()) {
   firebase.initializeApp(window.FIREBASE_CONFIG);
   auth = firebase.auth();
   db = firebase.firestore();
-  auth.getRedirectResult().catch((error) => say(firebaseMessage(error)));
   auth.onAuthStateChanged((user) => {
-    const pendingLogin = new URLSearchParams(location.search).get("login") === "1";
-    if (user) sessionStorage.removeItem("courtwatch.loginStarted");
-    if (!user && onSignInHost() && pendingLogin) {
-      if (sessionStorage.getItem("courtwatch.loginStarted") === "1") {
-        sessionStorage.removeItem("courtwatch.loginStarted");
-        say("로그인에 실패했습니다. Google로 로그인을 다시 누르세요.");
-      } else {
-        signIn().catch((error) => say(firebaseMessage(error)));
-        return;
-      }
-    }
     signedIn(user).catch((error) => say(firebaseMessage(error)));
   });
 }
