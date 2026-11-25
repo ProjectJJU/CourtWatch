@@ -74,7 +74,6 @@ async function loadDocs() {
   state.status = statusSnap.exists ? statusSnap.data() : null;
   if (state.selected >= (state.config.watches || []).length) state.selected = 0;
   render();
-  document.querySelector("#link-card").open = false;
   say("불러왔습니다.");
 }
 

@@ -90,6 +90,13 @@ h2 { font-size: 1.05rem; }
 
 .grid { margin-top: 12px; }
 
+.card .hint + .row,
+.card .hint + .status,
+.card .hint + .add-row,
+.card .grid + .row {
+  margin-top: 12px;
+}
+
 label {
   display: flex;
   flex-direction: column;
@@ -151,6 +158,32 @@ button.danger {
   flex-direction: column;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tag {
+  flex: none;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.tag.real {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.tag.local {
+  background: #f3ecdf;
+  color: #6b5428;
 }
 
 .add-row input { flex: 1; min-width: 0; }

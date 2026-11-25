@@ -19,38 +19,62 @@
     </div>
   </header>
 
-  <details class="card connect" id="link-card" open>
-    <summary>
-      <span>연결</span>
-      <small>ntfy는 이 기기만</small>
-    </summary>
-    <p class="hint">ntfy 토픽과 토큰은 이 기기에만 남습니다. 설정과 검사 기록은 로그인한 Google 계정으로 읽습니다.</p>
+  <section class="card" id="account-card">
+    <div class="title-row">
+      <h2>계정</h2>
+      <span class="tag real">실제</span>
+    </div>
+    <p class="hint">로그인하면 저장된 설정과 최근 검사 기록을 보고 고칠 수 있습니다. 1분마다 도는 검사는 이 페이지에 들어오지 않아도 계속 저장됩니다.</p>
+    <div class="row">
+      <button type="button" id="sign-in-button">Google로 로그인</button>
+      <button type="button" id="sign-out-button" class="secondary" hidden>로그아웃</button>
+    </div>
+    <p id="account" class="hint"></p>
+  </section>
+
+  <section class="card" id="status-card">
+    <div class="title-row">
+      <h2>최근 검사</h2>
+      <span class="tag real">자동 기록</span>
+    </div>
+    <p class="hint">1분마다 저장되는 결과입니다. 로그인해야 내용이 보입니다.</p>
+    <div id="status" class="status">로그인하면 최근 검사가 표시됩니다.</div>
+  </section>
+
+  <section class="card" id="preview-card">
+    <div class="title-row">
+      <h2>이 화면에서 빈 시간 보기</h2>
+      <span class="tag local">이 화면만</span>
+    </div>
+    <p class="hint">알림을 보내지 않고, 휴대폰 명령도 아닙니다. 마지막 검사 기록으로 이 페이지에서만 계산합니다. 로그인 후 아래에 체크라고 입력합니다.</p>
+    <form id="check-form" class="add-row">
+      <input id="check-word" autocomplete="off" placeholder="체크">
+      <button type="submit">확인</button>
+    </form>
+    <div id="check-result"></div>
+  </section>
+
+  <section class="card" id="test-card">
+    <div class="title-row">
+      <h2>알림 테스트</h2>
+      <span class="tag local">이 브라우저만</span>
+    </div>
+    <p class="hint">저장되지 않습니다. 1분 검사가 쓰는 토픽은 GitHub에 따로 있고, 여기 값은 이 브라우저에서 테스트 알림을 보낼 때만 씁니다. 토픽을 잠그지 않았으면 토큰은 비웁니다.</p>
     <div class="grid">
       <label>ntfy 토픽<input id="topic" autocomplete="off" placeholder="긴 임의 이름"></label>
       <label>ntfy 토큰<input id="ntfy-token" type="password" autocomplete="off" placeholder="잠근 토픽만"></label>
     </div>
     <div class="row">
-      <button type="button" id="sign-in-button">Google로 로그인</button>
-      <button type="button" id="sign-out-button" class="secondary" hidden>로그아웃</button>
-      <button type="button" id="test-button" class="secondary">알림 테스트</button>
+      <button type="button" id="test-button" class="secondary">테스트 알림 보내기</button>
     </div>
-    <p id="account" class="hint"></p>
-  </details>
-
-  <section class="card" id="status-card">
-    <h2>지금</h2>
-    <div id="status" class="status">로그인하면 최근 검사가 표시됩니다.</div>
-    <form id="check-form" class="add-row">
-      <input id="check-word" autocomplete="off" placeholder="체크">
-      <button type="submit">확인</button>
-    </form>
-    <p class="hint">체크라고 입력하면 이 화면의 기준으로 빈 시간을 확인합니다. 알림은 보내지 않습니다.</p>
-    <div id="check-result"></div>
   </section>
 
   <section class="card" id="general-card" hidden>
-    <h2>알림</h2>
-    <p class="hint">지난 날짜는 보지 않습니다. 휴대폰 ntfy에서 체크라고 보내면 검사를 시작하고 지금 빈 시간을 답합니다.</p>
+    <div class="title-row">
+      <h2>알림</h2>
+      <span class="tag real">저장하면 적용</span>
+    </div>
+    <p class="hint">아래 저장을 눌러야 다음 검사부터 적용됩니다. 지난 날짜는 보지 않습니다. 휴대폰 ntfy에서 체크라고 보내면 검사를 시작하고 지금 빈 시간을 답합니다.</p>
     <div class="row">
       <button type="button" id="alert-toggle" class="toggle"></button>
     </div>
@@ -68,16 +92,22 @@
   </section>
 
   <section class="card" id="booking-card" hidden>
-    <h2>예약 기간</h2>
-    <p class="hint">오늘을 기준으로, 예약이 열리는 첫날과 며칠 동안 볼지를 그룹마다 정합니다.</p>
+    <div class="title-row">
+      <h2>예약 기간</h2>
+      <span class="tag real">저장하면 적용</span>
+    </div>
+    <p class="hint">오늘을 기준으로, 예약이 열리는 첫날과 며칠 동안 볼지를 그룹마다 정합니다. 저장을 눌러야 다음 검사부터 적용됩니다.</p>
     <div id="booking-groups"></div>
   </section>
 
   <section class="card" id="court-card" hidden>
     <div class="section-head">
       <div>
-        <h2>코트</h2>
-        <p class="hint">번호만 적어도 추가됩니다.</p>
+        <div class="title-row">
+          <h2>코트</h2>
+          <span class="tag real">저장하면 적용</span>
+        </div>
+        <p class="hint">번호만 적어도 추가됩니다. 목록을 고친 뒤 저장을 눌러야 다음 검사부터 적용됩니다.</p>
       </div>
       <div class="add-row">
         <input id="add-address" placeholder="코트 번호" inputmode="numeric" autocomplete="off">
