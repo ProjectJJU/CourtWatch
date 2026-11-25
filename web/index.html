@@ -41,7 +41,7 @@
     <div id="status" class="status">검사 기록을 불러오는 중입니다.</div>
   </section>
 
-  <section class="card" id="preview-card">
+  <section class="card tool-card" id="preview-card" hidden>
     <div class="title-row">
       <h2>이 화면에서 빈 시간 보기</h2>
       <span class="tag local">이 화면만</span>
@@ -54,7 +54,7 @@
     <div id="check-result"></div>
   </section>
 
-  <section class="card" id="test-card">
+  <section class="card tool-card" id="test-card" hidden>
     <div class="title-row">
       <h2>알림 테스트</h2>
       <span class="tag local">이 브라우저만</span>
@@ -120,6 +120,10 @@
       <button type="button" class="save-button primary" hidden>저장</button>
     </div>
   </section>
+
+  <div class="row tools-toggle">
+    <button type="button" id="tools-button" class="secondary">테스트</button>
+  </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>

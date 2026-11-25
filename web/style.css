@@ -88,6 +88,10 @@ h2 { font-size: 1.05rem; }
   gap: 8px;
 }
 
+.tools-toggle { margin-top: 4px; }
+
+.tools-toggle button { flex: 1; }
+
 .grid { margin-top: 12px; }
 
 .card .hint + .row,

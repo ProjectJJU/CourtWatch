@@ -535,6 +535,14 @@ function render() {
   renderCourts();
 }
 
+document.querySelector("#tools-button").addEventListener("click", () => {
+  const cards = document.querySelectorAll(".tool-card");
+  const open = cards[0].hidden;
+  cards.forEach((card) => {
+    card.hidden = !open;
+  });
+  document.querySelector("#tools-button").textContent = open ? "테스트 닫기" : "테스트";
+});
 document.querySelector("#check-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const input = document.querySelector("#check-word");
