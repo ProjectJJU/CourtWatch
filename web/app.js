@@ -88,12 +88,23 @@ async function signedIn(user) {
   await loadDocs();
 }
 
+const SIGN_IN_ORIGIN = "https://court-checker-30611.firebaseapp.com";
+
+function onSignInHost() {
+  return location.hostname === "court-checker-30611.firebaseapp.com";
+}
+
 async function signIn() {
   saveLocal();
+  if (!onSignInHost()) {
+    location.assign(SIGN_IN_ORIGIN + "/?login=1");
+    return;
+  }
   if (!auth) {
     say("Firebase가 설정되지 않았습니다");
     return;
   }
+  sessionStorage.setItem("courtwatch.loginStarted", "1");
   const provider = new firebase.auth.GoogleAuthProvider();
   await auth.signInWithRedirect(provider);
 }
@@ -598,6 +609,17 @@ if (!firebaseReady()) {
   db = firebase.firestore();
   auth.getRedirectResult().catch((error) => say(firebaseMessage(error)));
   auth.onAuthStateChanged((user) => {
+    const pendingLogin = new URLSearchParams(location.search).get("login") === "1";
+    if (user) sessionStorage.removeItem("courtwatch.loginStarted");
+    if (!user && onSignInHost() && pendingLogin) {
+      if (sessionStorage.getItem("courtwatch.loginStarted") === "1") {
+        sessionStorage.removeItem("courtwatch.loginStarted");
+        say("로그인에 실패했습니다. Google로 로그인을 다시 누르세요.");
+      } else {
+        signIn().catch((error) => say(firebaseMessage(error)));
+        return;
+      }
+    }
     signedIn(user).catch((error) => say(firebaseMessage(error)));
   });
 }
