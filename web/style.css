@@ -398,6 +398,13 @@ input {
   word-break: break-all;
 }
 
+.account-fixed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 @media (min-width: 860px) {
   .app { padding-top: 28px; }
 

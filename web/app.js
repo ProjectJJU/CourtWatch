@@ -1,6 +1,7 @@
 const cfgApi = window.CourtConfig;
 const checkApi = window.CourtCheck;
 const NTFY_SERVER = "https://ntfy.sh";
+const OWNER_EMAIL = "jinid231@gmail.com";
 const fields = ["topic", "ntfy-token"];
 const state = {
   config: null,
@@ -139,20 +140,44 @@ async function signedIn(user) {
   await loadDocs();
 }
 
+function loginEmail() {
+  const emailLabel = document.querySelector("#email-label");
+  if (emailLabel && !emailLabel.hidden) {
+    return document.querySelector("#email").value.trim();
+  }
+  return OWNER_EMAIL;
+}
+
+function resetEmailEditor() {
+  const emailLabel = document.querySelector("#email-label");
+  const fixed = document.querySelector("#fixed-email");
+  const edit = document.querySelector("#email-edit-button");
+  if (!emailLabel) return;
+  emailLabel.hidden = true;
+  document.querySelector("#email").value = "";
+  if (fixed) fixed.textContent = OWNER_EMAIL;
+  if (edit) edit.hidden = false;
+}
+
 async function signIn() {
   saveLocal();
   if (!auth) {
     say("Firebase가 설정되지 않았습니다");
     return;
   }
-  const email = document.querySelector("#email").value.trim();
+  const email = loginEmail();
   const password = document.querySelector("#password").value;
-  if (!email || !password) {
-    say("이메일과 비밀번호를 입력하세요.");
+  if (!email) {
+    say("이메일을 입력하세요.");
+    return;
+  }
+  if (!password) {
+    say("비밀번호를 입력하세요.");
     return;
   }
   await auth.signInWithEmailAndPassword(email, password);
   document.querySelector("#password").value = "";
+  resetEmailEditor();
   say("로그인했습니다.");
 }
 
@@ -690,6 +715,16 @@ document.querySelector("#check-form").addEventListener("submit", (event) => {
   const input = document.querySelector("#check-word");
   const word = input.value;
   runCheck(word).catch(() => say("예약 정보를 읽지 못했습니다"));
+});
+document.querySelector("#email-edit-button").addEventListener("click", () => {
+  const emailLabel = document.querySelector("#email-label");
+  const emailInput = document.querySelector("#email");
+  const edit = document.querySelector("#email-edit-button");
+  emailLabel.hidden = false;
+  edit.hidden = true;
+  emailInput.value = OWNER_EMAIL;
+  emailInput.focus();
+  emailInput.select();
 });
 document.querySelector("#sign-in-form").addEventListener("submit", (event) => {
   event.preventDefault();
