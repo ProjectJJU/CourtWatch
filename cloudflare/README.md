@@ -46,7 +46,7 @@ Firebase 프로젝트는 Planner와 Tracker(`local-web-92324`, `core-robotics-sw
 1. Firebase 콘솔에서 프로젝트를 만들고 Firestore를 만듭니다. 위치는 쓰는 리전으로 둡니다.
 2. Authentication에서 Google 로그인을 켭니다. 승인된 도메인에 GitHub Pages 호스트와, 로컬에서 볼 때는 `localhost`를 넣습니다.
 3. 프로젝트 설정의 웹 앱 값 여섯 개(`apiKey`, `authDomain`, `projectId`, `storageBucket`, `messagingSenderId`, `appId`)를 `web/firebase-config.js`에 넣습니다. 이 값들은 페이지에 그대로 나가고 비밀키가 아닙니다. 비어 있으면 설정 페이지는 "Firebase가 설정되지 않았습니다"에서 멈춥니다.
-4. `firestore.rules`의 이메일이 로그인할 Google 계정과 같은지 확인합니다. 지금은 `Jinid231@gmail.com`입니다. 다른 계정이면 그 문자열만 바꿉니다.
+4. `firestore.rules`의 이메일이 로그인할 Google 계정과 같은지 확인합니다. 지금은 `jinid231@gmail.com`입니다. 다른 계정이면 그 문자열만 바꿉니다.
 5. 이 폴더에서 `firebase deploy --only firestore:rules`로 규칙을 배포합니다. 규칙을 배포하지 않으면 페이지에서의 읽기와 쓰기가 거부됩니다. 서비스 계정 쓰기는 규칙을 지나갑니다.
 6. 서비스 계정을 만들고 역할은 Cloud Datastore User로 둡니다. JSON 키 전체를 GitHub Actions 비밀값 `FIREBASE_SERVICE_ACCOUNT`에 넣습니다. 키 파일은 저장소에 넣지 않습니다.
 7. 설정 페이지를 연 사람이 Google로 로그인하면 `config`를 고칠 수 있습니다. `state`는 페이지만 읽고, 검사가 씁니다.
