@@ -93,8 +93,9 @@ async function loadDocs() {
   state.status = statusSnap.exists ? statusSnap.data() : null;
   if (state.selectedGroup >= (state.config.booking_groups || []).length) state.selectedGroup = 0;
   state.editingGroup = false;
+  state.editingGeneral = false;
   render();
-  say("불러왔습니다.");
+  say("");
 }
 
 function syncGroupsFromWatches() {
@@ -190,22 +191,23 @@ function resetEmailEditor() {
 async function signIn() {
   saveLocal();
   if (!auth) {
-    say("Firebase가 설정되지 않았습니다");
+    sayAccount("Firebase가 설정되지 않았습니다");
     return;
   }
   const email = loginEmail();
   const password = document.querySelector("#password").value;
   if (!email) {
-    say("이메일을 입력하세요.");
+    sayAccount("이메일을 입력하세요.");
     return;
   }
   if (!password) {
-    say("비밀번호를 입력하세요.");
+    sayAccount("비밀번호를 입력하세요.");
     return;
   }
   await auth.signInWithEmailAndPassword(email, password);
   document.querySelector("#password").value = "";
   resetEmailEditor();
+  sayAccount("");
   say("로그인했습니다.");
 }
 
@@ -231,7 +233,7 @@ async function testNtfy() {
   const topic = document.querySelector("#topic").value.trim();
   const server = NTFY_SERVER;
   if (!topic) {
-    say("ntfy 토픽을 입력하세요.");
+    sayTools("ntfy 토픽을 입력하세요.");
     return;
   }
   const ntfyToken = document.querySelector("#ntfy-token").value.trim();
@@ -248,7 +250,7 @@ async function testNtfy() {
       tags: ["tennis"],
     }),
   });
-  say(response.ok ? "테스트 알림을 보냈습니다." : "테스트 알림을 보내지 못했습니다.");
+  sayTools(response.ok ? "테스트 알림을 보냈습니다." : "테스트 알림을 보내지 못했습니다.");
 }
 
 function plain(value) {
@@ -312,23 +314,23 @@ function renderCheckResult(result) {
 
 async function runCheck(word) {
   if (!checkApi.isCheckCommand(word)) {
-    say("체크라고 입력하세요.");
+    sayTools("체크라고 입력하세요.");
     return;
   }
   if (!state.config) {
-    say("아직 설정이 없습니다.");
+    sayTools("아직 설정이 없습니다.");
     return;
   }
   const button = document.querySelector("#check-form button");
   button.disabled = true;
-  say("확인 중입니다.");
+  sayTools("확인 중입니다.");
   try {
     const result = await checkApi.loadPreview(state.config, state.status, seoulTodayIso());
     renderCheckResult(result);
-    say("");
+    sayTools("");
   } catch (error) {
     document.querySelector("#check-result").replaceChildren();
-    say(error && error.message ? error.message : "예약 정보를 읽지 못했습니다");
+    sayTools(error && error.message ? error.message : "예약 정보를 읽지 못했습니다");
   } finally {
     button.disabled = false;
   }
@@ -392,16 +394,96 @@ function formatMonthDay(day) {
   return `${day.getMonth() + 1}월 ${day.getDate()}일`;
 }
 
+function sleepLabel(sleep) {
+  if (!sleep || !sleep.start || sleep.start === sleep.end) return "없음";
+  return `${sleep.start} – ${sleep.end}`;
+}
+
 function renderGeneral() {
+  const root = document.querySelector("#general-detail");
+  if (!root || !state.config) return;
+  root.replaceChildren();
   const config = state.config;
-  const alertButton = document.querySelector("#alert-toggle");
   const on = config.alerts_enabled !== false;
-  alertButton.textContent = on ? "알림 켜짐" : "알림 꺼짐";
-  alertButton.classList.toggle("on", on);
   const sleep = config.sleep || {};
+
+  const head = document.createElement("div");
+  head.className = "panel-head";
+  const titleBox = document.createElement("div");
+  const title = document.createElement("h2");
+  title.textContent = "전체 알림";
+  const hint = document.createElement("p");
+  hint.className = "hint";
+  hint.textContent = "모든 코트에 같이 적용됩니다.";
+  titleBox.append(title, hint);
+  const editButton = document.createElement("button");
+  editButton.type = "button";
+  editButton.className = "ghost";
+  editButton.textContent = state.editingGeneral ? "닫기" : "수정";
+  editButton.addEventListener("click", () => {
+    state.editingGeneral = !state.editingGeneral;
+    render();
+  });
+  head.append(titleBox, editButton);
+  root.append(head);
+
+  if (!state.editingGeneral) {
+    const info = document.createElement("div");
+    info.className = "info-grid";
+    info.append(
+      infoCard("알림", on ? "켜짐" : "꺼짐"),
+      infoCard("수면", sleepLabel(sleep), true)
+    );
+    root.append(info);
+    return;
+  }
+
+  const alertRow = document.createElement("div");
+  alertRow.className = "row";
+  const alertButton = document.createElement("button");
+  alertButton.type = "button";
+  alertButton.className = "toggle" + (on ? " on" : "");
+  alertButton.textContent = on ? "알림 켜짐" : "알림 꺼짐";
+  alertButton.addEventListener("click", () => {
+    state.config.alerts_enabled = state.config.alerts_enabled === false;
+    render();
+  });
+  alertRow.append(alertButton);
+  root.append(alertRow);
+
+  const timeRow = document.createElement("div");
+  timeRow.className = "time-row";
+  const startField = document.createElement("label");
+  startField.append(document.createTextNode("수면 시작"));
+  const startInput = document.createElement("input");
+  startInput.type = "time";
+  startInput.id = "sleep-start";
   const same = sleep.start && sleep.start === sleep.end;
-  document.querySelector("#sleep-start").value = same ? "" : sleep.start || "";
-  document.querySelector("#sleep-end").value = same ? "" : sleep.end || "";
+  startInput.value = same ? "" : sleep.start || "";
+  startField.append(startInput);
+  const endField = document.createElement("label");
+  endField.append(document.createTextNode("수면 끝"));
+  const endInput = document.createElement("input");
+  endInput.type = "time";
+  endInput.id = "sleep-end";
+  endInput.value = same ? "" : sleep.end || "";
+  endField.append(endInput);
+  const apply = document.createElement("button");
+  apply.type = "button";
+  apply.className = "ghost";
+  apply.textContent = "적용";
+  apply.addEventListener("click", () => {
+    let start = startInput.value;
+    let end = endInput.value;
+    if (!start && !end) {
+      start = "00:00";
+      end = "00:00";
+    }
+    state.config.sleep = { start, end };
+    render();
+  });
+  timeRow.append(startField, endField, apply);
+  root.append(timeRow);
 }
 
 function chip(label, active, onClick) {
@@ -525,33 +607,41 @@ function renderGroupDetail() {
       infoCard("보는 기간", `${formatMonthDay(start)} – ${formatMonthDay(end)}`, true),
       infoCard("코트 번호", (group.courts || []).join(", ") || "없음", true),
       infoCard("운영 시작", group.open || "06:00"),
-      infoCard("운영 끝", group.close || "22:00")
+      infoCard("운영 끝", group.close || "22:00"),
+      infoCard("평일 감시", groupWeekdaySlots(group).join(", ") || "없음", true),
+      infoCard("주말 감시", groupWeekendSlots(group).join(", ") || "없음", true)
     );
+    const extras = groupExtras(group);
+    if (extras.length) {
+      info.append(infoCard("추가 감시", extras.map((item) => item.label || "추가").join(", ") || `${extras.length}개`, true));
+    }
     detail.append(info);
-  } else {
-    const form = document.createElement("div");
-    form.className = "grid";
-    const nameField = document.createElement("label");
-    nameField.className = "span-2";
-    nameField.append(document.createTextNode("그룹 이름"));
-    const nameInput = document.createElement("input");
-    nameInput.value = group.name || "";
-    nameInput.addEventListener("change", () => {
-      group.name = nameInput.value.trim() || group.name;
+    return;
+  }
+
+  const form = document.createElement("div");
+  form.className = "grid";
+  const nameField = document.createElement("label");
+  nameField.className = "span-2";
+  nameField.append(document.createTextNode("그룹 이름"));
+  const nameInput = document.createElement("input");
+  nameInput.value = group.name || "";
+  nameInput.addEventListener("change", () => {
+    group.name = nameInput.value.trim() || group.name;
+    render();
+  });
+  nameField.append(nameInput);
+  form.append(
+    nameField,
+    numberField("오늘로부터 며칠 뒤", after, 0, 60, (value) => {
+      group.after_days = value;
       render();
-    });
-    nameField.append(nameInput);
-    form.append(
-      nameField,
-      numberField("오늘로부터 며칠 뒤", after, 0, 60, (value) => {
-        group.after_days = value;
-        render();
-      }),
-      numberField("예약 가능 일수", days, 1, 60, (value) => {
-        group.days = value;
-        render();
-      })
-    );
+    }),
+    numberField("예약 가능 일수", days, 1, 60, (value) => {
+      group.days = value;
+      render();
+    })
+  );
     const openField = document.createElement("label");
     openField.append(document.createTextNode("운영 시작"));
     const openInput = document.createElement("input");
@@ -695,7 +785,6 @@ function renderGroupDetail() {
       render();
     });
     detail.append(removeGroup);
-  }
 
   const weekdayLabel = document.createElement("p");
   weekdayLabel.className = "group-label";
@@ -900,13 +989,19 @@ function openSheet(id) {
   if (sheet && typeof sheet.showModal === "function") sheet.showModal();
 }
 
-document.querySelector("#account-button").addEventListener("click", () => openSheet("#account-sheet"));
-document.querySelector("#tools-button").addEventListener("click", () => openSheet("#tools-sheet"));
+document.querySelector("#account-button").addEventListener("click", () => {
+  sayAccount("");
+  openSheet("#account-sheet");
+});
+document.querySelector("#tools-button").addEventListener("click", () => {
+  sayTools("");
+  openSheet("#tools-sheet");
+});
 document.querySelector("#check-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const input = document.querySelector("#check-word");
   const word = input.value;
-  runCheck(word).catch(() => say("예약 정보를 읽지 못했습니다"));
+  runCheck(word).catch(() => sayTools("예약 정보를 읽지 못했습니다"));
 });
 document.querySelector("#email-edit-button").addEventListener("click", () => {
   const emailInput = document.querySelector("#email");
@@ -927,17 +1022,19 @@ document.querySelector("#sign-in-form").addEventListener("submit", (event) => {
       const sheet = document.querySelector("#account-sheet");
       if (sheet && sheet.open) sheet.close();
     })
-    .catch((error) => say(firebaseMessage(error)));
+    .catch((error) => sayAccount(firebaseMessage(error)));
 });
 document.querySelector("#sign-out-button").addEventListener("click", () => {
   if (!auth) return;
   auth
     .signOut()
     .then(() => {
+      sayAccount("");
+      state.editingGeneral = false;
       const sheet = document.querySelector("#account-sheet");
       if (sheet && sheet.open) sheet.close();
     })
-    .catch((error) => say(firebaseMessage(error)));
+    .catch((error) => sayAccount(firebaseMessage(error)));
 });
 document.querySelectorAll(".save-button").forEach((button) => {
   button.addEventListener("click", () => {
@@ -945,23 +1042,7 @@ document.querySelectorAll(".save-button").forEach((button) => {
   });
 });
 document.querySelector("#test-button").addEventListener("click", () => {
-  testNtfy().catch(() => say("테스트 알림을 보내지 못했습니다."));
-});
-document.querySelector("#alert-toggle").addEventListener("click", () => {
-  if (!state.config) return;
-  state.config.alerts_enabled = state.config.alerts_enabled === false;
-  render();
-});
-document.querySelector("#sleep-apply").addEventListener("click", () => {
-  if (!state.config) return;
-  let start = document.querySelector("#sleep-start").value;
-  let end = document.querySelector("#sleep-end").value;
-  if (!start && !end) {
-    start = "00:00";
-    end = "00:00";
-  }
-  state.config.sleep = { start, end };
-  render();
+  testNtfy().catch(() => sayTools("테스트 알림을 보내지 못했습니다."));
 });
 document.querySelector("#add-group-button").addEventListener("click", () => {
   if (!state.config) return;
