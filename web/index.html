@@ -44,6 +44,21 @@
 
       <p class="guest-note" id="guest-note">설정을 고치려면 오른쪽 위 계정 아이콘으로 로그인하세요.</p>
 
+      <section class="panel global-panel" id="general-card" hidden>
+        <div class="panel-head">
+          <div>
+            <h2>전체 알림</h2>
+            <p class="hint">모든 코트에 같이 적용됩니다.</p>
+          </div>
+          <button type="button" id="alert-toggle" class="toggle"></button>
+        </div>
+        <div class="time-row">
+          <label>수면 시작<input id="sleep-start" type="time"></label>
+          <label>수면 끝<input id="sleep-end" type="time"></label>
+          <button type="button" id="sleep-apply" class="ghost">적용</button>
+        </div>
+      </section>
+
       <section class="workspace" id="workspace" hidden>
         <aside class="rail panel">
           <div class="panel-head">
@@ -58,23 +73,6 @@
 
         <section class="panel detail-panel">
           <div id="group-detail"></div>
-          <div class="alerts-block" id="general-card">
-            <div class="panel-head">
-              <h2>알림</h2>
-              <button type="button" id="alert-toggle" class="toggle"></button>
-            </div>
-            <p class="hint">수면 시간에는 빈 코트 알림을 보내지 않습니다.</p>
-            <div class="row wrap" id="sleep-row">
-              <button type="button" data-sleep="00:00,00:00">없음</button>
-              <button type="button" data-sleep="23:00,07:00">23–07</button>
-              <button type="button" data-sleep="00:00,08:00">00–08</button>
-            </div>
-            <div class="time-row">
-              <label>시작<input id="sleep-start" type="time"></label>
-              <label>끝<input id="sleep-end" type="time"></label>
-              <button type="button" id="sleep-apply" class="ghost">적용</button>
-            </div>
-          </div>
           <div class="save-footer">
             <button type="button" class="save-button primary" hidden>저장</button>
           </div>

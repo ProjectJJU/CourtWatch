@@ -338,10 +338,16 @@ input {
 
 .court-edit input { min-width: 0; }
 
-.alerts-block {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
+.global-panel {
+  margin-bottom: 14px;
+}
+
+.global-panel .panel-head {
+  align-items: flex-start;
+}
+
+.global-panel .hint {
+  margin-top: 4px;
 }
 
 .save-footer {

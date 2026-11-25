@@ -349,10 +349,6 @@ function renderGeneral() {
   const same = sleep.start && sleep.start === sleep.end;
   document.querySelector("#sleep-start").value = same ? "" : sleep.start || "";
   document.querySelector("#sleep-end").value = same ? "" : sleep.end || "";
-  document.querySelectorAll("[data-sleep]").forEach((button) => {
-    const [start, end] = button.dataset.sleep.split(",");
-    button.classList.toggle("active", sleep.start === start && sleep.end === end);
-  });
 }
 
 function chip(label, active, onClick) {
@@ -670,6 +666,7 @@ function renderStatusPulse() {
 function render() {
   const canEdit = loggedIn() && Boolean(state.config);
   document.querySelector("#workspace").hidden = !canEdit;
+  document.querySelector("#general-card").hidden = !canEdit;
   document.querySelector("#guest-note").hidden = loggedIn();
   document.querySelectorAll(".save-button").forEach((button) => {
     button.hidden = !canEdit;
@@ -725,14 +722,6 @@ document.querySelector("#alert-toggle").addEventListener("click", () => {
   if (!state.config) return;
   state.config.alerts_enabled = state.config.alerts_enabled === false;
   render();
-});
-document.querySelectorAll("[data-sleep]").forEach((button) => {
-  button.addEventListener("click", () => {
-    if (!state.config) return;
-    const [start, end] = button.dataset.sleep.split(",");
-    state.config.sleep = { start, end };
-    render();
-  });
 });
 document.querySelector("#sleep-apply").addEventListener("click", () => {
   if (!state.config) return;
