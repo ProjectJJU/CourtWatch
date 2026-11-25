@@ -53,12 +53,12 @@ function firebaseMessage(error) {
 function showAccount(user) {
   const account = document.querySelector("#account");
   const signInForm = document.querySelector("#sign-in-form");
-  const signInButton = document.querySelector("#sign-in-button");
-  const signOutButton = document.querySelector("#sign-out-button");
+  const signedInBox = document.querySelector("#signed-in-box");
+  const accountDot = document.querySelector("#account-dot");
   account.textContent = user && user.email ? user.email : "";
   signInForm.hidden = Boolean(user);
-  signInButton.hidden = Boolean(user);
-  signOutButton.hidden = !user;
+  signedInBox.hidden = !user;
+  accountDot.hidden = !user;
 }
 
 async function loadDocs() {
@@ -370,13 +370,13 @@ function renderGroups() {
   (state.config.booking_groups || []).forEach((group, index) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "court" + (index === state.selectedGroup ? " active" : "");
+    button.className = "group-item" + (index === state.selectedGroup ? " active" : "");
     const title = document.createElement("strong");
     title.textContent = plain(group.name) || "그룹";
     const detail = document.createElement("small");
-    const courts = (group.courts || []).map(String).join(", ") || "코트 없음";
-    detail.textContent = `코트 ${courts}`;
-    button.append(title, document.createElement("br"), detail);
+    const count = (group.courts || []).length;
+    detail.textContent = count ? `코트 ${count}개` : "코트 없음";
+    button.append(title, detail);
     button.addEventListener("click", () => {
       state.selectedGroup = index;
       state.editingGroup = false;
@@ -387,15 +387,15 @@ function renderGroups() {
   renderGroupDetail();
 }
 
-function infoLine(label, value) {
-  const row = document.createElement("p");
-  row.className = "info-line";
+function infoCard(label, value, wide) {
+  const card = document.createElement("div");
+  card.className = "info-card" + (wide ? " wide" : "");
   const name = document.createElement("span");
   name.textContent = label;
   const text = document.createElement("strong");
   text.textContent = value;
-  row.append(name, text);
-  return row;
+  card.append(name, text);
+  return card;
 }
 
 function numberField(label, value, min, max, onChange) {
@@ -452,14 +452,14 @@ function renderGroupDetail() {
   root.append(detail);
 
   const head = document.createElement("div");
-  head.className = "row";
+  head.className = "detail-head";
   const title = document.createElement("h3");
   title.textContent = plain(group.name) || "그룹";
   head.append(title);
   const editButton = document.createElement("button");
   editButton.type = "button";
-  editButton.className = "secondary";
-  editButton.textContent = state.editingGroup ? "수정 닫기" : "수정";
+  editButton.className = "ghost";
+  editButton.textContent = state.editingGroup ? "닫기" : "수정";
   editButton.addEventListener("click", () => {
     state.editingGroup = !state.editingGroup;
     render();
@@ -468,14 +468,17 @@ function renderGroupDetail() {
   detail.append(head);
 
   if (!state.editingGroup) {
-    detail.append(
-      infoLine("오늘로부터 며칠 뒤", `${after}일`),
-      infoLine("예약 가능 일수", `${days}일`),
-      infoLine("보는 기간", `${formatMonthDay(start)}부터 ${formatMonthDay(end)}까지`),
-      infoLine("코트 번호", (group.courts || []).join(", ") || "없음"),
-      infoLine("운영 시작", group.open || "06:00"),
-      infoLine("운영 끝", group.close || "22:00")
+    const info = document.createElement("div");
+    info.className = "info-grid";
+    info.append(
+      infoCard("오늘로부터", `${after}일 뒤`),
+      infoCard("예약 일수", `${days}일`),
+      infoCard("보는 기간", `${formatMonthDay(start)} – ${formatMonthDay(end)}`, true),
+      infoCard("코트 번호", (group.courts || []).join(", ") || "없음", true),
+      infoCard("운영 시작", group.open || "06:00"),
+      infoCard("운영 끝", group.close || "22:00")
     );
+    detail.append(info);
   } else {
     const form = document.createElement("div");
     form.className = "grid";
@@ -659,27 +662,32 @@ function renderGroupDetail() {
   detail.append(weekdayLabel, weekdayRow, weekendLabel, weekendRow);
 }
 
+function renderStatusPulse() {
+  const pulse = document.querySelector("#status-pulse");
+  pulse.hidden = !(state.status && state.status.last_check);
+}
+
 function render() {
   const canEdit = loggedIn() && Boolean(state.config);
-  document.querySelector("#general-card").hidden = !canEdit;
-  document.querySelector("#groups-card").hidden = !canEdit;
+  document.querySelector("#workspace").hidden = !canEdit;
+  document.querySelector("#guest-note").hidden = loggedIn();
   document.querySelectorAll(".save-button").forEach((button) => {
     button.hidden = !canEdit;
   });
   renderStatus();
+  renderStatusPulse();
   if (!canEdit) return;
   renderGeneral();
   renderGroups();
 }
 
-document.querySelector("#tools-button").addEventListener("click", () => {
-  const cards = document.querySelectorAll(".tool-card");
-  const open = cards[0].hidden;
-  cards.forEach((card) => {
-    card.hidden = !open;
-  });
-  document.querySelector("#tools-button").textContent = open ? "테스트 닫기" : "테스트";
-});
+function openSheet(id) {
+  const sheet = document.querySelector(id);
+  if (sheet && typeof sheet.showModal === "function") sheet.showModal();
+}
+
+document.querySelector("#account-button").addEventListener("click", () => openSheet("#account-sheet"));
+document.querySelector("#tools-button").addEventListener("click", () => openSheet("#tools-sheet"));
 document.querySelector("#check-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const input = document.querySelector("#check-word");
@@ -688,11 +696,22 @@ document.querySelector("#check-form").addEventListener("submit", (event) => {
 });
 document.querySelector("#sign-in-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  signIn().catch((error) => say(firebaseMessage(error)));
+  signIn()
+    .then(() => {
+      const sheet = document.querySelector("#account-sheet");
+      if (sheet && sheet.open) sheet.close();
+    })
+    .catch((error) => say(firebaseMessage(error)));
 });
 document.querySelector("#sign-out-button").addEventListener("click", () => {
   if (!auth) return;
-  auth.signOut().catch((error) => say(firebaseMessage(error)));
+  auth
+    .signOut()
+    .then(() => {
+      const sheet = document.querySelector("#account-sheet");
+      if (sheet && sheet.open) sheet.close();
+    })
+    .catch((error) => say(firebaseMessage(error)));
 });
 document.querySelectorAll(".save-button").forEach((button) => {
   button.addEventListener("click", () => {
@@ -748,6 +767,10 @@ document.querySelector("#add-group-button").addEventListener("click", () => {
   document.querySelector("#add-group-name").value = "";
   render();
 });
+
+if (location.search) {
+  history.replaceState({}, "", location.pathname);
+}
 
 loadLocal();
 render();

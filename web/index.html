@@ -3,118 +3,131 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>빈 코트 설정</title>
+  <title>빈 코트</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Syne:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="top">
-    <div class="title-block">
-      <p class="eyebrow">Court Watch</p>
-      <h1>빈 코트</h1>
-      <p class="lede">새로 빈 시간만 알립니다. 알림에는 주소를 넣지 않습니다.</p>
-    </div>
-    <div class="top-actions">
-      <p id="message" class="message" role="status"></p>
-      <button type="button" class="save-button primary" hidden>저장</button>
-    </div>
-  </header>
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <p class="eyebrow">Court Watch</p>
+        <h1>빈 코트</h1>
+      </div>
+      <div class="top-bar">
+        <p id="message" class="message" role="status"></p>
+        <div class="icon-bar">
+          <button type="button" class="icon-button save-button" id="save-top" hidden title="저장" aria-label="저장">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5V4zm3 0v5h7V4M8 14h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button type="button" class="icon-button" id="tools-button" title="테스트" aria-label="테스트" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3l3 3M4 20l6.5-1.5L19 10a2.1 2.1 0 0 0-3-3L7.5 15.5 4 20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button type="button" class="icon-button" id="account-button" title="계정" aria-label="계정" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="account-dot" class="dot" hidden></span>
+          </button>
+        </div>
+      </div>
+    </header>
 
-  <section class="card" id="account-card">
-    <div class="title-row">
+    <main>
+      <section class="panel status-panel" id="status-card">
+        <div class="panel-head">
+          <h2>최근 검사</h2>
+          <span class="pulse" id="status-pulse" hidden></span>
+        </div>
+        <div id="status" class="status">검사 기록을 불러오는 중입니다.</div>
+      </section>
+
+      <p class="guest-note" id="guest-note">설정을 고치려면 오른쪽 위 계정 아이콘으로 로그인하세요.</p>
+
+      <section class="workspace" id="workspace" hidden>
+        <aside class="rail panel">
+          <div class="panel-head">
+            <h2>그룹</h2>
+          </div>
+          <div id="group-list" class="group-list"></div>
+          <div class="add-row compact">
+            <input id="add-group-name" placeholder="새 그룹" autocomplete="off">
+            <button type="button" id="add-group-button" class="ghost">추가</button>
+          </div>
+        </aside>
+
+        <section class="panel detail-panel">
+          <div id="group-detail"></div>
+          <div class="alerts-block" id="general-card">
+            <div class="panel-head">
+              <h2>알림</h2>
+              <button type="button" id="alert-toggle" class="toggle"></button>
+            </div>
+            <p class="hint">수면 시간에는 빈 코트 알림을 보내지 않습니다.</p>
+            <div class="row wrap" id="sleep-row">
+              <button type="button" data-sleep="00:00,00:00">없음</button>
+              <button type="button" data-sleep="23:00,07:00">23–07</button>
+              <button type="button" data-sleep="00:00,08:00">00–08</button>
+            </div>
+            <div class="time-row">
+              <label>시작<input id="sleep-start" type="time"></label>
+              <label>끝<input id="sleep-end" type="time"></label>
+              <button type="button" id="sleep-apply" class="ghost">적용</button>
+            </div>
+          </div>
+          <div class="save-footer">
+            <button type="button" class="save-button primary" hidden>저장</button>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <dialog class="sheet" id="account-sheet">
+    <form method="dialog" class="sheet-head">
       <h2>계정</h2>
-      <span class="tag real">실제</span>
-    </div>
-    <p class="hint">코트와 알림 시간을 고칠 때 이메일과 비밀번호로 로그인합니다. 최근 검사 기록은 로그인하지 않아도 보입니다.</p>
-    <form id="sign-in-form" class="grid">
+      <button type="submit" class="icon-button" aria-label="닫기">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </form>
+    <p class="hint">코트와 감시 시간을 고칠 때만 로그인합니다. 최근 검사는 로그인 없이도 보입니다.</p>
+    <form id="sign-in-form" class="stack">
       <label>이메일<input id="email" type="email" autocomplete="username" placeholder="jinid231@gmail.com"></label>
       <label>비밀번호<input id="password" type="password" autocomplete="current-password" placeholder="비밀번호"></label>
+      <button type="submit" id="sign-in-button" class="primary">로그인</button>
     </form>
-    <div class="row">
-      <button type="submit" form="sign-in-form" id="sign-in-button">로그인</button>
-      <button type="button" id="sign-out-button" class="secondary" hidden>로그아웃</button>
+    <div class="stack" id="signed-in-box" hidden>
+      <p id="account" class="account-email"></p>
+      <button type="button" id="sign-out-button" class="secondary">로그아웃</button>
     </div>
-    <p id="account" class="hint"></p>
-  </section>
+  </dialog>
 
-  <section class="card" id="status-card">
-    <div class="title-row">
-      <h2>최근 검사</h2>
-      <span class="tag real">자동 기록</span>
-    </div>
-    <p class="hint">1분마다 자동으로 저장되는 결과입니다. 로그인하지 않아도 보입니다.</p>
-    <div id="status" class="status">검사 기록을 불러오는 중입니다.</div>
-  </section>
-
-  <section class="card tool-card" id="preview-card" hidden>
-    <div class="title-row">
-      <h2>이 화면에서 빈 시간 보기</h2>
-      <span class="tag local">이 화면만</span>
-    </div>
-    <p class="hint">알림을 보내지 않고, 휴대폰 명령도 아닙니다. 마지막 검사 기록으로 이 페이지에서만 계산합니다. 아래에 체크라고 입력합니다.</p>
-    <form id="check-form" class="add-row">
-      <input id="check-word" autocomplete="off" placeholder="체크">
-      <button type="submit">확인</button>
+  <dialog class="sheet" id="tools-sheet">
+    <form method="dialog" class="sheet-head">
+      <h2>테스트</h2>
+      <button type="submit" class="icon-button" aria-label="닫기">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
     </form>
-    <div id="check-result"></div>
-  </section>
-
-  <section class="card tool-card" id="test-card" hidden>
-    <div class="title-row">
-      <h2>알림 테스트</h2>
-      <span class="tag local">이 브라우저만</span>
-    </div>
-    <p class="hint">저장되지 않습니다. 1분 검사가 쓰는 토픽은 GitHub에 따로 있고, 여기 값은 이 브라우저에서 테스트 알림을 보낼 때만 씁니다. 토픽을 잠그지 않았으면 토큰은 비웁니다.</p>
-    <div class="grid">
-      <label>ntfy 토픽<input id="topic" autocomplete="off" placeholder="긴 임의 이름"></label>
-      <label>ntfy 토큰<input id="ntfy-token" type="password" autocomplete="off" placeholder="잠근 토픽만"></label>
-    </div>
-    <div class="row">
-      <button type="button" id="test-button" class="secondary">테스트 알림 보내기</button>
-    </div>
-  </section>
-
-  <section class="card" id="general-card" hidden>
-    <div class="title-row">
-      <h2>알림</h2>
-      <span class="tag real">저장하면 적용</span>
-    </div>
-    <p class="hint">아래 저장을 눌러야 다음 검사부터 적용됩니다. 지난 날짜는 보지 않습니다. 휴대폰 ntfy에서 체크라고 보내면 검사를 시작하고 지금 빈 시간을 답합니다.</p>
-    <div class="row">
-      <button type="button" id="alert-toggle" class="toggle"></button>
-    </div>
-    <p class="group-label">수면</p>
-    <div class="row" id="sleep-row">
-      <button type="button" data-sleep="00:00,00:00">없음</button>
-      <button type="button" data-sleep="23:00,07:00">23:00–07:00</button>
-      <button type="button" data-sleep="00:00,08:00">00:00–08:00</button>
-    </div>
-    <div class="time-row">
-      <label>시작<input id="sleep-start" type="time"></label>
-      <label>끝<input id="sleep-end" type="time"></label>
-      <button type="button" id="sleep-apply">적용</button>
-    </div>
-  </section>
-
-  <section class="card" id="groups-card" hidden>
-    <div class="title-row">
-      <h2>그룹</h2>
-      <span class="tag real">저장하면 적용</span>
-    </div>
-    <p class="hint">양산종합운동장, 삽량체육공원처럼 그룹을 고릅니다. 평일·주말 감시 시간은 바로 고치고, 예약 기간·코트 번호·운영 시간은 수정을 누른 뒤에만 바꿉니다.</p>
-    <div class="add-row">
-      <input id="add-group-name" placeholder="그룹 이름" autocomplete="off">
-      <button type="button" id="add-group-button">그룹 추가</button>
-    </div>
-    <div id="group-list" class="court-list"></div>
-    <div id="group-detail"></div>
-    <div class="save-footer">
-      <button type="button" class="save-button primary" hidden>저장</button>
-    </div>
-  </section>
-
-  <div class="row tools-toggle">
-    <button type="button" id="tools-button" class="secondary">테스트</button>
-  </div>
+    <section class="sheet-block">
+      <h3>이 화면에서 빈 시간 보기</h3>
+      <p class="hint">알림 없이, 마지막 검사 기록으로만 계산합니다.</p>
+      <form id="check-form" class="add-row">
+        <input id="check-word" autocomplete="off" placeholder="체크">
+        <button type="submit" class="ghost">확인</button>
+      </form>
+      <div id="check-result"></div>
+    </section>
+    <section class="sheet-block">
+      <h3>알림 테스트</h3>
+      <p class="hint">이 브라우저에만 남습니다. 1분 검사가 쓰는 토픽은 GitHub에 따로 있습니다.</p>
+      <div class="stack">
+        <label>ntfy 토픽<input id="topic" autocomplete="off" placeholder="긴 임의 이름"></label>
+        <label>ntfy 토큰<input id="ntfy-token" type="password" autocomplete="off" placeholder="잠근 토픽만"></label>
+        <button type="button" id="test-button" class="secondary">테스트 알림 보내기</button>
+      </div>
+    </section>
+  </dialog>
 
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
