@@ -221,7 +221,25 @@ h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 6px; }
 
 .detail {
   display: grid;
+  gap: 16px;
+}
+
+.group-title {
+  margin: 0;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.group-section {
+  display: grid;
   gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.group-section:first-of-type {
+  padding-top: 0;
+  border-top: none;
 }
 
 .detail-head {
@@ -233,7 +251,7 @@ h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 6px; }
 
 .detail-head h3 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 0.95rem;
   letter-spacing: -0.02em;
 }
 

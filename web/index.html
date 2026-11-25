@@ -71,12 +71,12 @@
   </div>
 
   <dialog class="sheet" id="account-sheet">
-    <form method="dialog" class="sheet-head">
+    <div class="sheet-head">
       <h2>계정</h2>
-      <button type="submit" class="icon-button" aria-label="닫기">
+      <button type="button" class="icon-button sheet-close" aria-label="닫기">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
-    </form>
+    </div>
     <p class="hint">코트와 감시 시간을 고칠 때만 로그인합니다. 최근 검사는 로그인 없이도 보입니다.</p>
     <p id="account-message" class="sheet-message" role="status"></p>
     <form id="sign-in-form" class="stack">
@@ -99,12 +99,12 @@
   </dialog>
 
   <dialog class="sheet" id="tools-sheet">
-    <form method="dialog" class="sheet-head">
+    <div class="sheet-head">
       <h2>테스트</h2>
-      <button type="submit" class="icon-button" aria-label="닫기">
+      <button type="button" class="icon-button sheet-close" aria-label="닫기">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
       </button>
-    </form>
+    </div>
     <p id="tools-message" class="sheet-message" role="status"></p>
     <section class="sheet-block">
       <h3>이 화면에서 빈 시간 보기</h3>

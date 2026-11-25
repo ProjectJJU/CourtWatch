@@ -7,7 +7,8 @@ const state = {
   config: null,
   status: null,
   selectedGroup: 0,
-  editingGroup: false,
+  editingGroupInfo: false,
+  editingGroupWatch: false,
   editingGeneral: false,
 };
 let auth = null;
@@ -92,10 +93,15 @@ async function loadDocs() {
   const statusSnap = await db.collection("courtwatch").doc("state").get();
   state.status = statusSnap.exists ? statusSnap.data() : null;
   if (state.selectedGroup >= (state.config.booking_groups || []).length) state.selectedGroup = 0;
-  state.editingGroup = false;
-  state.editingGeneral = false;
+  closeEditors();
   render();
   say("");
+}
+
+function closeEditors() {
+  state.editingGroupInfo = false;
+  state.editingGroupWatch = false;
+  state.editingGeneral = false;
 }
 
 function syncGroupsFromWatches() {
@@ -221,6 +227,8 @@ async function saveRepo() {
   state.config.watches = (state.config.watches || []).map(cfgApi.normalizeWatch);
   applyGroupHoursToAll();
   await db.collection("courtwatch").doc("config").set(state.config);
+  closeEditors();
+  render();
   say("저장했습니다. 다음 검사부터 적용됩니다.");
 }
 
@@ -510,7 +518,8 @@ function renderGroups() {
     button.append(title, detail);
     button.addEventListener("click", () => {
       state.selectedGroup = index;
-      state.editingGroup = false;
+      state.editingGroupInfo = false;
+      state.editingGroupWatch = false;
       render();
     });
     list.append(button);
@@ -564,6 +573,20 @@ function renderSlotChips(row, group, kind, selected) {
   });
 }
 
+function sectionHead(titleText, editing, onToggle) {
+  const head = document.createElement("div");
+  head.className = "detail-head";
+  const title = document.createElement("h3");
+  title.textContent = titleText;
+  const editButton = document.createElement("button");
+  editButton.type = "button";
+  editButton.className = "ghost";
+  editButton.textContent = editing ? "닫기" : "수정";
+  editButton.addEventListener("click", onToggle);
+  head.append(title, editButton);
+  return head;
+}
+
 function renderGroupDetail() {
   const root = document.querySelector("#group-detail");
   root.replaceChildren();
@@ -582,23 +605,21 @@ function renderGroupDetail() {
   detail.className = "detail";
   root.append(detail);
 
-  const head = document.createElement("div");
-  head.className = "detail-head";
   const title = document.createElement("h3");
+  title.className = "group-title";
   title.textContent = plain(group.name) || "그룹";
-  head.append(title);
-  const editButton = document.createElement("button");
-  editButton.type = "button";
-  editButton.className = "ghost";
-  editButton.textContent = state.editingGroup ? "닫기" : "수정";
-  editButton.addEventListener("click", () => {
-    state.editingGroup = !state.editingGroup;
-    render();
-  });
-  head.append(editButton);
-  detail.append(head);
+  detail.append(title);
 
-  if (!state.editingGroup) {
+  const infoSection = document.createElement("section");
+  infoSection.className = "group-section";
+  infoSection.append(
+    sectionHead("예약 · 코트", state.editingGroupInfo, () => {
+      state.editingGroupInfo = !state.editingGroupInfo;
+      render();
+    })
+  );
+
+  if (!state.editingGroupInfo) {
     const info = document.createElement("div");
     info.className = "info-grid";
     info.append(
@@ -607,41 +628,33 @@ function renderGroupDetail() {
       infoCard("보는 기간", `${formatMonthDay(start)} – ${formatMonthDay(end)}`, true),
       infoCard("코트 번호", (group.courts || []).join(", ") || "없음", true),
       infoCard("운영 시작", group.open || "06:00"),
-      infoCard("운영 끝", group.close || "22:00"),
-      infoCard("평일 감시", groupWeekdaySlots(group).join(", ") || "없음", true),
-      infoCard("주말 감시", groupWeekendSlots(group).join(", ") || "없음", true)
+      infoCard("운영 끝", group.close || "22:00")
     );
-    const extras = groupExtras(group);
-    if (extras.length) {
-      info.append(infoCard("추가 감시", extras.map((item) => item.label || "추가").join(", ") || `${extras.length}개`, true));
-    }
-    detail.append(info);
-    return;
-  }
-
-  const form = document.createElement("div");
-  form.className = "grid";
-  const nameField = document.createElement("label");
-  nameField.className = "span-2";
-  nameField.append(document.createTextNode("그룹 이름"));
-  const nameInput = document.createElement("input");
-  nameInput.value = group.name || "";
-  nameInput.addEventListener("change", () => {
-    group.name = nameInput.value.trim() || group.name;
-    render();
-  });
-  nameField.append(nameInput);
-  form.append(
-    nameField,
-    numberField("오늘로부터 며칠 뒤", after, 0, 60, (value) => {
-      group.after_days = value;
+    infoSection.append(info);
+  } else {
+    const form = document.createElement("div");
+    form.className = "grid";
+    const nameField = document.createElement("label");
+    nameField.className = "span-2";
+    nameField.append(document.createTextNode("그룹 이름"));
+    const nameInput = document.createElement("input");
+    nameInput.value = group.name || "";
+    nameInput.addEventListener("change", () => {
+      group.name = nameInput.value.trim() || group.name;
       render();
-    }),
-    numberField("예약 가능 일수", days, 1, 60, (value) => {
-      group.days = value;
-      render();
-    })
-  );
+    });
+    nameField.append(nameInput);
+    form.append(
+      nameField,
+      numberField("오늘로부터 며칠 뒤", after, 0, 60, (value) => {
+        group.after_days = value;
+        render();
+      }),
+      numberField("예약 가능 일수", days, 1, 60, (value) => {
+        group.days = value;
+        render();
+      })
+    );
     const openField = document.createElement("label");
     openField.append(document.createTextNode("운영 시작"));
     const openInput = document.createElement("input");
@@ -665,16 +678,16 @@ function renderGroupDetail() {
     });
     closeField.append(closeInput);
     form.append(openField, closeField);
-    detail.append(form);
+    infoSection.append(form);
     const range = document.createElement("p");
     range.className = "hint";
     range.textContent = `${formatMonthDay(start)}부터 ${formatMonthDay(end)}까지`;
-    detail.append(range);
+    infoSection.append(range);
 
     const courtsLabel = document.createElement("p");
     courtsLabel.className = "group-label";
     courtsLabel.textContent = "코트";
-    detail.append(courtsLabel);
+    infoSection.append(courtsLabel);
     watches.forEach((watch) => {
       const row = document.createElement("div");
       row.className = "row court-edit";
@@ -732,7 +745,7 @@ function renderGroupDetail() {
         render();
       });
       row.append(name, id, enabled, remove);
-      detail.append(row);
+      infoSection.append(row);
     });
     const addRow = document.createElement("div");
     addRow.className = "add-row";
@@ -770,7 +783,7 @@ function renderGroupDetail() {
       render();
     });
     addRow.append(addInput, addButton);
-    detail.append(addRow);
+    infoSection.append(addRow);
 
     const removeGroup = document.createElement("button");
     removeGroup.type = "button";
@@ -781,33 +794,66 @@ function renderGroupDetail() {
       state.config.watches = state.config.watches.filter((watch) => !ids.has(Number(watch.id)));
       state.config.booking_groups.splice(state.selectedGroup, 1);
       state.selectedGroup = Math.max(0, state.selectedGroup - 1);
-      state.editingGroup = false;
+      state.editingGroupInfo = false;
+      state.editingGroupWatch = false;
       render();
     });
-    detail.append(removeGroup);
+    infoSection.append(removeGroup);
+  }
+  detail.append(infoSection);
 
-  const weekdayLabel = document.createElement("p");
-  weekdayLabel.className = "group-label";
-  weekdayLabel.textContent = "평일 감시 시간";
-  const weekdayRow = document.createElement("div");
-  weekdayRow.className = "chips";
-  renderSlotChips(weekdayRow, group, "weekday", groupWeekdaySlots(group));
-  const weekendLabel = document.createElement("p");
-  weekendLabel.className = "group-label";
-  weekendLabel.textContent = "주말 감시 시간";
-  const weekendRow = document.createElement("div");
-  weekendRow.className = "chips";
-  renderSlotChips(weekendRow, group, "weekend", groupWeekendSlots(group));
-  detail.append(weekdayLabel, weekdayRow, weekendLabel, weekendRow);
+  const watchSection = document.createElement("section");
+  watchSection.className = "group-section";
+  watchSection.append(
+    sectionHead("감시", state.editingGroupWatch, () => {
+      state.editingGroupWatch = !state.editingGroupWatch;
+      render();
+    })
+  );
 
-  const extrasLabel = document.createElement("p");
-  extrasLabel.className = "group-label";
-  extrasLabel.textContent = "추가 감시";
-  const extrasHint = document.createElement("p");
-  extrasHint.className = "hint";
-  extrasHint.textContent = "특정 요일이나 날짜만 시간을 더하거나, 그날만 다른 시간으로 바꿉니다.";
-  detail.append(extrasLabel, extrasHint);
-  renderExtrasEditor(detail, group);
+  if (!state.editingGroupWatch) {
+    const info = document.createElement("div");
+    info.className = "info-grid";
+    info.append(
+      infoCard("평일 감시", groupWeekdaySlots(group).join(", ") || "없음", true),
+      infoCard("주말 감시", groupWeekendSlots(group).join(", ") || "없음", true)
+    );
+    const extras = groupExtras(group);
+    if (extras.length) {
+      info.append(
+        infoCard(
+          "추가 감시",
+          extras.map((item) => item.label || "추가").join(", ") || `${extras.length}개`,
+          true
+        )
+      );
+    }
+    watchSection.append(info);
+  } else {
+    const weekdayLabel = document.createElement("p");
+    weekdayLabel.className = "group-label";
+    weekdayLabel.textContent = "평일 감시 시간";
+    const weekdayRow = document.createElement("div");
+    weekdayRow.className = "chips";
+    renderSlotChips(weekdayRow, group, "weekday", groupWeekdaySlots(group));
+    const weekendLabel = document.createElement("p");
+    weekendLabel.className = "group-label";
+    weekendLabel.textContent = "주말 감시 시간";
+    const weekendRow = document.createElement("div");
+    weekendRow.className = "chips";
+    renderSlotChips(weekendRow, group, "weekend", groupWeekendSlots(group));
+    watchSection.append(weekdayLabel, weekdayRow, weekendLabel, weekendRow);
+
+    const extrasLabel = document.createElement("p");
+    extrasLabel.className = "group-label";
+    extrasLabel.textContent = "추가 감시";
+    const extrasHint = document.createElement("p");
+    extrasHint.className = "hint";
+    extrasHint.textContent = "특정 요일이나 날짜만 시간을 더하거나, 그날만 다른 시간으로 바꿉니다.";
+    watchSection.append(extrasLabel, extrasHint);
+    renderExtrasEditor(watchSection, group);
+  }
+  detail.append(watchSection);
 }
 
 function renderExtrasEditor(detail, group) {
@@ -989,6 +1035,12 @@ function openSheet(id) {
   if (sheet && typeof sheet.showModal === "function") sheet.showModal();
 }
 
+document.querySelectorAll(".sheet-close").forEach((button) => {
+  button.addEventListener("click", () => {
+    const sheet = button.closest("dialog");
+    if (sheet) sheet.close();
+  });
+});
 document.querySelector("#account-button").addEventListener("click", () => {
   sayAccount("");
   openSheet("#account-sheet");
@@ -1024,13 +1076,18 @@ document.querySelector("#sign-in-form").addEventListener("submit", (event) => {
     })
     .catch((error) => sayAccount(firebaseMessage(error)));
 });
+document.querySelector("#password").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  document.querySelector("#sign-in-form").requestSubmit();
+});
 document.querySelector("#sign-out-button").addEventListener("click", () => {
   if (!auth) return;
   auth
     .signOut()
     .then(() => {
       sayAccount("");
-      state.editingGeneral = false;
+      closeEditors();
       const sheet = document.querySelector("#account-sheet");
       if (sheet && sheet.open) sheet.close();
     })
@@ -1062,7 +1119,8 @@ document.querySelector("#add-group-button").addEventListener("click", () => {
     close: "22:00",
   });
   state.selectedGroup = state.config.booking_groups.length - 1;
-  state.editingGroup = true;
+  state.editingGroupInfo = true;
+  state.editingGroupWatch = false;
   document.querySelector("#add-group-name").value = "";
   render();
 });
