@@ -1,6 +1,6 @@
 # Cloudflare에서 1분마다 검사 시작
 
-GitHub 예약은 쓰지 않습니다. Cloudflare Worker `court-watch`가 1분마다 깨어납니다. 이미 돌고 있거나 대기 중인 `check.yml`이 있으면 새 실행을 넣지 않습니다. 검사는 코트 화면 대신 예약 API를 읽고, 코트마다 동시에 요청합니다.
+GitHub 예약은 쓰지 않습니다. Cloudflare Worker `court-watch`가 1분마다 깨어납니다. 이미 돌고 있는 `check.yml`이 있으면 새 실행을 넣지 않습니다. 대기만 1분을 넘긴 실행은 취소하고, 취소가 거절되어 기록이 남아도 그 대기는 다음 검사를 막지 않습니다. 검사는 코트 화면 대신 예약 API를 읽고, 코트마다 동시에 요청합니다.
 
 Worker 코드는 `cloudflare/worker.js`와 같습니다. 주소 `https://court-watch.jinid231.workers.dev/` 를 열면 `fetch() function`이 없다는 오류가 남습니다. 그 주소는 페이지가 아니고, 검사는 크론으로만 돕니다.
 
