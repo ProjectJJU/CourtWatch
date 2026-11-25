@@ -41,7 +41,9 @@ function firebaseReady() {
 function firebaseMessage(error) {
   const code = error && error.code;
   if (code === "permission-denied") return "이 계정은 설정을 읽을 수 없습니다.";
-  if (code === "auth/popup-closed-by-user") return "로그인을 취소했습니다.";
+  if (code === "auth/popup-closed-by-user" || code === "auth/redirect-cancelled-by-user") {
+    return "로그인을 취소했습니다.";
+  }
   return (error && error.message) || "Firebase 요청에 실패했습니다.";
 }
 
@@ -94,7 +96,7 @@ async function signIn() {
     return;
   }
   const provider = new firebase.auth.GoogleAuthProvider();
-  await auth.signInWithPopup(provider);
+  await auth.signInWithRedirect(provider);
 }
 
 async function saveRepo() {
@@ -595,6 +597,7 @@ if (!firebaseReady()) {
   firebase.initializeApp(window.FIREBASE_CONFIG);
   auth = firebase.auth();
   db = firebase.firestore();
+  auth.getRedirectResult().catch((error) => say(firebaseMessage(error)));
   auth.onAuthStateChanged((user) => {
     signedIn(user).catch((error) => say(firebaseMessage(error)));
   });
