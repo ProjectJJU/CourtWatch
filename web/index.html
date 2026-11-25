@@ -90,14 +90,15 @@
     </form>
     <p class="hint">코트와 감시 시간을 고칠 때만 로그인합니다. 최근 검사는 로그인 없이도 보입니다.</p>
     <form id="sign-in-form" class="stack">
-      <div class="account-fixed">
-        <div>
-          <p class="group-label">이메일</p>
-          <p id="fixed-email" class="account-email">jinid231@gmail.com</p>
+      <div class="field">
+        <span class="field-label">이메일</span>
+        <div class="field-row">
+          <input id="email" type="email" value="jinid231@gmail.com" autocomplete="username" readonly>
+          <button type="button" id="email-edit-button" class="icon-button" title="이메일 수정" aria-label="이메일 수정" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1.2L19 8.3a2 2 0 0 0-2.8-2.8L5.7 16.3 4 20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
         </div>
-        <button type="button" id="email-edit-button" class="ghost">수정</button>
       </div>
-      <label id="email-label" hidden>이메일<input id="email" type="email" autocomplete="username" placeholder="다른 이메일"></label>
       <label>비밀번호<input id="password" type="password" autocomplete="current-password" placeholder="비밀번호"></label>
       <button type="submit" id="sign-in-button" class="primary">로그인</button>
     </form>

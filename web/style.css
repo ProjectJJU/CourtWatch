@@ -327,8 +327,7 @@ input {
 .stack { flex-direction: column; }
 .stack label, .grid label { flex: 1; min-width: min(100%, 180px); }
 #sign-in-form[hidden],
-#signed-in-box[hidden],
-#email-label[hidden] {
+#signed-in-box[hidden] {
   display: none !important;
 }
 .add-row input { flex: 1; min-width: 0; }
@@ -399,15 +398,42 @@ input {
 }
 
 .account-email {
+  margin: 0;
   font-weight: 650;
   word-break: break-all;
 }
 
-.account-fixed {
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.field-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+}
+
+.field-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-row input[readonly] {
+  background: #f3ecdf;
+  color: var(--ink);
+}
+
+#email-edit-button[aria-pressed="true"] {
+  border-color: var(--green);
+  color: var(--green);
 }
 
 @media (min-width: 860px) {

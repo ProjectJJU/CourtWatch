@@ -125,11 +125,33 @@ function applyGroupSlots(group, kind, slots) {
   });
 }
 
+function groupExtras(group) {
+  const watches = watchesInGroup(group);
+  return watches[0] ? JSON.parse(JSON.stringify(watches[0].extras || [])) : [];
+}
+
+function applyGroupExtras(group, extras) {
+  const normalized = extras.map(cfgApi.normalizeExtra);
+  watchesInGroup(group).forEach((watch) => {
+    watch.extras = JSON.parse(JSON.stringify(normalized));
+    Object.assign(watch, cfgApi.normalizeWatch(watch));
+  });
+}
+
 function applyGroupHours(group) {
   watchesInGroup(group).forEach((watch) => {
     watch.open = group.open || "06:00";
     watch.close = group.close || "22:00";
   });
+}
+
+function describeExtra(extra) {
+  const days = cfgApi.formatWeekdays(extra.weekdays || []);
+  const dates = (extra.dates || []).join(", ");
+  const when = [days !== "없음" && days ? days : "", dates].filter(Boolean).join(" · ") || "날 미정";
+  const slots = (extra.slots || []).join(", ") || "시간 미정";
+  const mode = extra.replace ? "대신" : "추가";
+  return `${when} · ${slots} (${mode})`;
 }
 
 function loggedIn() {
@@ -142,22 +164,16 @@ async function signedIn(user) {
 }
 
 function loginEmail() {
-  const emailLabel = document.querySelector("#email-label");
-  if (emailLabel && !emailLabel.hidden) {
-    return document.querySelector("#email").value.trim();
-  }
-  return OWNER_EMAIL;
+  return document.querySelector("#email").value.trim() || OWNER_EMAIL;
 }
 
 function resetEmailEditor() {
-  const emailLabel = document.querySelector("#email-label");
-  const fixed = document.querySelector("#fixed-email");
+  const input = document.querySelector("#email");
   const edit = document.querySelector("#email-edit-button");
-  if (!emailLabel) return;
-  emailLabel.hidden = true;
-  document.querySelector("#email").value = "";
-  if (fixed) fixed.textContent = OWNER_EMAIL;
-  if (edit) edit.hidden = false;
+  if (!input) return;
+  input.value = OWNER_EMAIL;
+  input.readOnly = true;
+  if (edit) edit.setAttribute("aria-pressed", "false");
 }
 
 async function signIn() {
@@ -682,6 +698,169 @@ function renderGroupDetail() {
   weekendRow.className = "chips";
   renderSlotChips(weekendRow, group, "weekend", groupWeekendSlots(group));
   detail.append(weekdayLabel, weekdayRow, weekendLabel, weekendRow);
+
+  const extrasLabel = document.createElement("p");
+  extrasLabel.className = "group-label";
+  extrasLabel.textContent = "추가 감시";
+  const extrasHint = document.createElement("p");
+  extrasHint.className = "hint";
+  extrasHint.textContent = "특정 요일이나 날짜만 시간을 더하거나, 그날만 다른 시간으로 바꿉니다.";
+  detail.append(extrasLabel, extrasHint);
+  renderExtrasEditor(detail, group);
+}
+
+function renderExtrasEditor(detail, group) {
+  const extras = groupExtras(group);
+  const list = document.createElement("div");
+  list.className = "extras-list";
+  extras.forEach((extra, index) => {
+    const card = document.createElement("div");
+    card.className = "extra-card";
+    const head = document.createElement("div");
+    head.className = "detail-head";
+    const title = document.createElement("strong");
+    title.textContent = extra.label || `추가 ${index + 1}`;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "danger ghost";
+    remove.textContent = "삭제";
+    remove.addEventListener("click", () => {
+      extras.splice(index, 1);
+      applyGroupExtras(group, extras);
+      render();
+    });
+    head.append(title, remove);
+    card.append(head);
+
+    const labelField = document.createElement("label");
+    labelField.append(document.createTextNode("이름"));
+    const labelInput = document.createElement("input");
+    labelInput.value = extra.label || "";
+    labelInput.placeholder = "예: 수요일 저녁";
+    labelInput.addEventListener("change", () => {
+      extras[index].label = labelInput.value.trim();
+      applyGroupExtras(group, extras);
+      render();
+    });
+    labelField.append(labelInput);
+    card.append(labelField);
+
+    const dayLabel = document.createElement("p");
+    dayLabel.className = "group-label";
+    dayLabel.textContent = "요일";
+    const dayRow = document.createElement("div");
+    dayRow.className = "chips day-chips";
+    cfgApi.WEEKDAYS.forEach((label, day) => {
+      const selected = (extra.weekdays || []).includes(day);
+      dayRow.append(
+        chip(label, selected, () => {
+          const days = new Set(extra.weekdays || []);
+          if (days.has(day)) days.delete(day);
+          else days.add(day);
+          extras[index].weekdays = [...days].sort((a, b) => a - b);
+          applyGroupExtras(group, extras);
+          render();
+        })
+      );
+    });
+    card.append(dayLabel, dayRow);
+
+    const dateLabel = document.createElement("p");
+    dateLabel.className = "group-label";
+    dateLabel.textContent = "특정 날짜";
+    const dateRow = document.createElement("div");
+    dateRow.className = "add-row";
+    const dateInput = document.createElement("input");
+    dateInput.type = "date";
+    const dateAdd = document.createElement("button");
+    dateAdd.type = "button";
+    dateAdd.className = "ghost";
+    dateAdd.textContent = "날짜 추가";
+    dateAdd.addEventListener("click", () => {
+      const value = dateInput.value;
+      if (!value) {
+        say("날짜를 고르세요.");
+        return;
+      }
+      const dates = new Set(extra.dates || []);
+      dates.add(value);
+      extras[index].dates = [...dates].sort();
+      dateInput.value = "";
+      applyGroupExtras(group, extras);
+      render();
+    });
+    dateRow.append(dateInput, dateAdd);
+    card.append(dateLabel, dateRow);
+    const dateList = document.createElement("div");
+    dateList.className = "date-list";
+    (extra.dates || []).forEach((day) => {
+      const pill = document.createElement("button");
+      pill.type = "button";
+      pill.className = "ghost";
+      pill.textContent = `${day} ×`;
+      pill.addEventListener("click", () => {
+        extras[index].dates = (extra.dates || []).filter((item) => item !== day);
+        applyGroupExtras(group, extras);
+        render();
+      });
+      dateList.append(pill);
+    });
+    if ((extra.dates || []).length) card.append(dateList);
+
+    const slotLabel = document.createElement("p");
+    slotLabel.className = "group-label";
+    slotLabel.textContent = "시간";
+    const slotRow = document.createElement("div");
+    slotRow.className = "chips";
+    cfgApi.menuSlots(group.open || "06:00", group.close || "22:00").forEach((slot) => {
+      const selected = (extra.slots || []).includes(slot);
+      slotRow.append(
+        chip(slot.replace("-", "–"), selected, () => {
+          const slots = new Set(extra.slots || []);
+          if (slots.has(slot)) slots.delete(slot);
+          else slots.add(slot);
+          extras[index].slots = [...slots].sort();
+          applyGroupExtras(group, extras);
+          render();
+        })
+      );
+    });
+    card.append(slotLabel, slotRow);
+
+    const replace = document.createElement("button");
+    replace.type = "button";
+    replace.className = "toggle" + (extra.replace ? " on" : "");
+    replace.textContent = extra.replace ? "기본 시간 대신 쓰기" : "기본 시간에 추가";
+    replace.addEventListener("click", () => {
+      extras[index].replace = !extra.replace;
+      applyGroupExtras(group, extras);
+      render();
+    });
+    card.append(replace);
+    const summary = document.createElement("p");
+    summary.className = "hint";
+    summary.textContent = describeExtra(extras[index]);
+    card.append(summary);
+    list.append(card);
+  });
+  detail.append(list);
+
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "secondary";
+  add.textContent = "추가 감시 만들기";
+  add.addEventListener("click", () => {
+    extras.push({
+      label: "",
+      weekdays: [],
+      dates: [],
+      slots: [],
+      replace: false,
+    });
+    applyGroupExtras(group, extras);
+    render();
+  });
+  detail.append(add);
 }
 
 function renderStatusPulse() {
@@ -718,12 +897,14 @@ document.querySelector("#check-form").addEventListener("submit", (event) => {
   runCheck(word).catch(() => say("예약 정보를 읽지 못했습니다"));
 });
 document.querySelector("#email-edit-button").addEventListener("click", () => {
-  const emailLabel = document.querySelector("#email-label");
   const emailInput = document.querySelector("#email");
   const edit = document.querySelector("#email-edit-button");
-  emailLabel.hidden = false;
-  edit.hidden = true;
-  emailInput.value = OWNER_EMAIL;
+  if (!emailInput.readOnly) {
+    resetEmailEditor();
+    return;
+  }
+  emailInput.readOnly = false;
+  edit.setAttribute("aria-pressed", "true");
   emailInput.focus();
   emailInput.select();
 });
