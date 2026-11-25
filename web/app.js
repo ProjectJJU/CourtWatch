@@ -60,6 +60,7 @@ function showAccount(user) {
   signInForm.hidden = Boolean(user);
   signedInBox.hidden = !user;
   accountDot.hidden = !user;
+  if (user) resetEmailEditor();
 }
 
 async function loadDocs() {

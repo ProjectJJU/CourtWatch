@@ -326,6 +326,11 @@ input {
 
 .stack { flex-direction: column; }
 .stack label, .grid label { flex: 1; min-width: min(100%, 180px); }
+#sign-in-form[hidden],
+#signed-in-box[hidden],
+#email-label[hidden] {
+  display: none !important;
+}
 .add-row input { flex: 1; min-width: 0; }
 .add-row.compact { margin-top: 4px; }
 
