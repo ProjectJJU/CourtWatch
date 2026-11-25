@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>빈 코트 설정</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="title-block">
+      <p class="eyebrow">Court Watch</p>
+      <h1>빈 코트</h1>
+      <p class="lede">새로 빈 시간만 알립니다. 알림에는 주소를 넣지 않습니다.</p>
+    </div>
+    <div class="top-actions">
+      <p id="message" class="message" role="status"></p>
+      <button type="button" class="save-button primary" hidden>저장</button>
+    </div>
+  </header>
+
+  <details class="card connect" id="link-card" open>
+    <summary>
+      <span>연결</span>
+      <small>ntfy는 이 기기만</small>
+    </summary>
+    <p class="hint">ntfy 토픽과 토큰은 이 기기에만 남습니다. 설정과 검사 기록은 로그인한 Google 계정으로 읽습니다.</p>
+    <div class="grid">
+      <label>ntfy 토픽<input id="topic" autocomplete="off" placeholder="긴 임의 이름"></label>
+      <label>ntfy 토큰<input id="ntfy-token" type="password" autocomplete="off" placeholder="잠근 토픽만"></label>
+    </div>
+    <div class="row">
+      <button type="button" id="sign-in-button">Google로 로그인</button>
+      <button type="button" id="sign-out-button" class="secondary" hidden>로그아웃</button>
+      <button type="button" id="test-button" class="secondary">알림 테스트</button>
+    </div>
+    <p id="account" class="hint"></p>
+  </details>
+
+  <section class="card" id="status-card">
+    <h2>지금</h2>
+    <div id="status" class="status">로그인하면 최근 검사가 표시됩니다.</div>
+    <form id="check-form" class="add-row">
+      <input id="check-word" autocomplete="off" placeholder="체크">
+      <button type="submit">확인</button>
+    </form>
+    <p class="hint">체크라고 입력하면 이 화면의 기준으로 빈 시간을 확인합니다. 알림은 보내지 않습니다.</p>
+    <div id="check-result"></div>
+  </section>
+
+  <section class="card" id="general-card" hidden>
+    <h2>알림</h2>
+    <p class="hint">지난 날짜는 보지 않습니다. 휴대폰 ntfy에서 체크라고 보내면 검사를 시작하고 지금 빈 시간을 답합니다.</p>
+    <div class="row">
+      <button type="button" id="alert-toggle" class="toggle"></button>
+    </div>
+    <p class="group-label">수면</p>
+    <div class="row" id="sleep-row">
+      <button type="button" data-sleep="00:00,00:00">없음</button>
+      <button type="button" data-sleep="23:00,07:00">23:00–07:00</button>
+      <button type="button" data-sleep="00:00,08:00">00:00–08:00</button>
+    </div>
+    <div class="time-row">
+      <label>시작<input id="sleep-start" type="time"></label>
+      <label>끝<input id="sleep-end" type="time"></label>
+      <button type="button" id="sleep-apply">적용</button>
+    </div>
+  </section>
+
+  <section class="card" id="booking-card" hidden>
+    <h2>예약 기간</h2>
+    <p class="hint">오늘을 기준으로, 예약이 열리는 첫날과 며칠 동안 볼지를 그룹마다 정합니다.</p>
+    <div id="booking-groups"></div>
+  </section>
+
+  <section class="card" id="court-card" hidden>
+    <div class="section-head">
+      <div>
+        <h2>코트</h2>
+        <p class="hint">번호만 적어도 추가됩니다.</p>
+      </div>
+      <div class="add-row">
+        <input id="add-address" placeholder="코트 번호" inputmode="numeric" autocomplete="off">
+        <button type="button" id="add-button">추가</button>
+      </div>
+    </div>
+    <div id="court-list" class="court-list"></div>
+    <div id="court-detail"></div>
+    <div class="save-footer">
+      <button type="button" class="save-button primary" hidden>저장</button>
+    </div>
+  </section>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="config.js"></script>
+  <script src="check.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

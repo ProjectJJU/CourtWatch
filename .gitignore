@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+playwright-report/
+test-results/
+사용방법.md
+state/slots.json
+.firebase/

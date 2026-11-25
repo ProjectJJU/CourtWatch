@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email == "Jinid231@gmail.com";
+    }
+
+    match /courtwatch/{docId} {
+      allow read: if isOwner();
+      allow create, update: if isOwner() && docId == "config";
+      allow delete: if false;
+    }
+  }
+}

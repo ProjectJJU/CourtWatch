@@ -1,0 +1,79 @@
+name: Check courts
+
+# Started by cloudflare/worker.js when no check is already running.
+# Setup notes are in cloudflare/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "Send an ntfy connection test and skip crawling"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: court-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip when another check is running
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - << 'PY'
+          import json, os, urllib.request
+          repo = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["GITHUB_RUN_ID"]
+          url = f"https://api.github.com/repos/{repo}/actions/runs?status=in_progress&per_page=50"
+          req = urllib.request.Request(
+              url,
+              headers={
+                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "court-watch",
+              },
+          )
+          with urllib.request.urlopen(req, timeout=30) as resp:
+              payload = json.load(resp)
+          others = [
+              run
+              for run in payload.get("workflow_runs", [])
+              if str(run.get("id")) != str(run_id)
+              and str(run.get("path", "")).endswith(".github/workflows/check.yml")
+          ]
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write("skip={}\n".format("true" if others else "false"))
+          PY
+
+      - name: Remember start
+        if: steps.gate.outputs.skip != 'true'
+        run: echo "CHECK_STARTED=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.skip != 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        if: steps.gate.outputs.skip != 'true'
+        run: pip install -r requirements.txt
+
+      - name: Check courts
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_SERVER: ${{ secrets.NTFY_SERVER }}
+          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          COURTWATCH_TEST: ${{ github.event.inputs.test }}
+        run: python -m checker.main
