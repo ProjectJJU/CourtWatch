@@ -292,6 +292,15 @@ function seoulTodayIso() {
   }).format(new Date());
 }
 
+function seoulNowHm() {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date());
+}
+
 function renderCheckList(keys) {
   const list = document.createElement("ul");
   list.className = "status-list";
@@ -348,7 +357,13 @@ async function runCheck(word) {
   button.disabled = true;
   sayTools("확인 중입니다.");
   try {
-    const result = await checkApi.loadPreview(state.config, state.status, seoulTodayIso());
+    const result = await checkApi.loadPreview(
+      state.config,
+      state.status,
+      seoulTodayIso(),
+      undefined,
+      seoulNowHm()
+    );
     renderCheckResult(result);
     sayTools("");
   } catch (error) {
@@ -794,7 +809,12 @@ function renderGroupDetail() {
   const after = Number(group.after_days) || 0;
   const days = Math.max(1, Number(group.days) || 1);
   const start = addDays(today, after);
-  const end = addDays(start, days - 1);
+  let end = addDays(start, days - 1);
+  const release = String(group.release || "").trim();
+  const nowHm = seoulNowHm();
+  if (release && /^\d{2}:\d{2}$/.test(release) && nowHm < release) {
+    end = addDays(end, -1);
+  }
   const watches = watchesInGroup(group);
   const detail = document.createElement("div");
   detail.className = "detail";
@@ -822,6 +842,7 @@ function renderGroupDetail() {
       infoCard("예약 일수", `${days}일`),
       infoCard("보는 기간", `${formatMonthDay(start)} – ${formatMonthDay(end)}`, true),
       infoCard("코트 번호", (group.courts || []).join(", ") || "없음", true),
+      infoCard("마지막 날 오픈", release || "없음"),
       infoCard("운영 시작", group.open || "06:00"),
       infoCard("운영 끝", group.close || "22:00")
     );
@@ -850,6 +871,16 @@ function renderGroupDetail() {
         render();
       })
     );
+    const releaseField = document.createElement("label");
+    releaseField.append(document.createTextNode("마지막 날 오픈"));
+    const releaseInput = document.createElement("input");
+    releaseInput.type = "time";
+    releaseInput.value = group.release || "";
+    releaseInput.addEventListener("change", () => {
+      group.release = releaseInput.value || "";
+      render();
+    });
+    releaseField.append(releaseInput);
     const openField = document.createElement("label");
     openField.append(document.createTextNode("운영 시작"));
     const openInput = document.createElement("input");
@@ -872,7 +903,7 @@ function renderGroupDetail() {
       render();
     });
     closeField.append(closeInput);
-    form.append(openField, closeField);
+    form.append(releaseField, openField, closeField);
     infoSection.append(form);
     const range = document.createElement("p");
     range.className = "hint";
@@ -1294,6 +1325,7 @@ document.querySelector("#add-group-button").addEventListener("click", () => {
     courts: [],
     after_days: 1,
     days: 14,
+    release: "09:00",
     open: "06:00",
     close: "22:00",
   });

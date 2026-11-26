@@ -31,7 +31,7 @@
     return (sunday + 6) % 7;
   }
 
-  function bookingWindow(config, courtId, todayIso) {
+  function bookingWindow(config, courtId, todayIso, nowHm) {
     const groups = config.booking_groups || [];
     if (!groups.length) {
       return { start: todayIso, end: addDays(todayIso, HORIZON_DAYS - 1) };
@@ -43,7 +43,13 @@
       const days = asInt(group.days, 0);
       if (after < 0 || days < 1) return null;
       const start = addDays(todayIso, after);
-      return { start, end: addDays(start, days - 1) };
+      let end = addDays(start, days - 1);
+      const release = String(group.release || "").trim();
+      const clock = String(nowHm || "").trim();
+      if (release && /^\d{2}:\d{2}$/.test(release) && /^\d{2}:\d{2}$/.test(clock) && clock < release) {
+        end = addDays(end, -1);
+      }
+      return { start, end };
     }
     return null;
   }
@@ -174,12 +180,12 @@
     return [...new Set([...base, ...add])].sort();
   }
 
-  function openKeys(config, calendars, todayIso) {
+  function openKeys(config, calendars, todayIso, nowHm) {
     const keys = [];
     (config.watches || []).forEach((watch) => {
       if (watch.enabled === false) return;
       const courtId = String(watch.id);
-      const window = bookingWindow(config, courtId, todayIso);
+      const window = bookingWindow(config, courtId, todayIso, nowHm);
       if (!window) return;
       const calendar = calendars[courtId] || {};
       const ranges = calendar.ranges || {};
@@ -240,14 +246,14 @@
     return response.json();
   }
 
-  async function loadPreview(config, status, todayIso, fetchImpl) {
+  async function loadPreview(config, status, todayIso, fetchImpl, nowHm) {
     const fetcher = fetchImpl || fetch;
     const calendars = {};
     const watches = (config.watches || []).filter((watch) => watch.enabled !== false);
     await Promise.all(
       watches.map(async (watch) => {
         const courtId = String(watch.id);
-        const window = bookingWindow(config, courtId, todayIso);
+        const window = bookingWindow(config, courtId, todayIso, nowHm);
         if (!window) return;
         const reservations = [];
         const rests = [];
@@ -270,7 +276,7 @@
         calendars[courtId] = { ranges: occupiedByDay(reservations), rest: restDates(rests) };
       })
     );
-    const open = openKeys(config, calendars, todayIso);
+    const open = openKeys(config, calendars, todayIso, nowHm);
     return { open, alarm: alarmKeys(status, open) };
   }
 

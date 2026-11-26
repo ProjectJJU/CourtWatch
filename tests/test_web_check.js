@@ -43,6 +43,22 @@ assert.deepStrictEqual(sapryang, { start: "2026-11-23", end: "2026-12-22" });
 assert.strictEqual(check.bookingWindow(config, 80, today), null);
 assert.deepStrictEqual(check.monthsCovering(stadium.start, stadium.end), ["2026-11", "2026-12"]);
 
+const releaseConfig = {
+  booking_groups: [{ courts: [47], after_days: 1, days: 30, release: "09:00" }],
+};
+assert.deepStrictEqual(check.bookingWindow(releaseConfig, 47, "2026-11-26", "08:59"), {
+  start: "2026-11-27",
+  end: "2026-12-25",
+});
+assert.deepStrictEqual(check.bookingWindow(releaseConfig, 47, "2026-11-26", "09:00"), {
+  start: "2026-11-27",
+  end: "2026-12-26",
+});
+assert.deepStrictEqual(check.bookingWindow(releaseConfig, 47, "2026-11-26"), {
+  start: "2026-11-27",
+  end: "2026-12-26",
+});
+
 assert.strictEqual(check.overlaps("20:00-22:00", "18:00", "21:00"), true);
 assert.strictEqual(check.overlaps("20:00-22:00", "22:00", "24:00"), false);
 assert.strictEqual(check.withinHours("06:00-08:00", "08:00", "22:00"), false);

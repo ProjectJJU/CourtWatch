@@ -185,7 +185,20 @@ def _as_int(value: object, default: int = 0) -> int:
         return default
 
 
-def booking_window(config: dict, court_id: object, today: date) -> tuple[date, date] | None:
+def _release_trim_end(end: date, release: object, now: datetime | None) -> date:
+    release_hm = str(release or "").strip()
+    release_t = parse_hm(release_hm) if release_hm else None
+    if release_t is None or now is None:
+        return end
+    current = now.time().replace(second=0, microsecond=0)
+    if current < release_t:
+        return end - timedelta(days=1)
+    return end
+
+
+def booking_window(
+    config: dict, court_id: object, today: date, now: datetime | None = None
+) -> tuple[date, date] | None:
     groups = config.get("booking_groups") or []
     if not groups:
         return today, today + timedelta(days=HORIZON_DAYS - 1)
@@ -198,11 +211,12 @@ def booking_window(config: dict, court_id: object, today: date) -> tuple[date, d
         if after < 0 or days < 1:
             return None
         start = today + timedelta(days=after)
-        return start, start + timedelta(days=days - 1)
+        end = start + timedelta(days=days - 1)
+        return start, _release_trim_end(end, group.get("release"), now)
     return None
 
 
-def crawl_end(config: dict, today: date) -> date:
+def crawl_end(config: dict, today: date, now: datetime | None = None) -> date:
     groups = config.get("booking_groups") or []
     if not groups:
         return today + timedelta(days=HORIZON_DAYS - 1)
@@ -212,7 +226,9 @@ def crawl_end(config: dict, today: date) -> date:
         days = _as_int(group.get("days"))
         if after < 0 or days < 1:
             continue
-        group_end = today + timedelta(days=after + days - 1)
+        group_end = _release_trim_end(
+            today + timedelta(days=after + days - 1), group.get("release"), now
+        )
         if group_end > end:
             end = group_end
     return end
@@ -264,13 +280,15 @@ def slots_for_day(watch: dict, weekday: int, day_iso: str | None = None) -> list
     return sorted(set(base + add_slots))
 
 
-def observed_slots(config: dict, calendars: dict, today: date) -> dict[str, bool]:
+def observed_slots(
+    config: dict, calendars: dict, today: date, now: datetime | None = None
+) -> dict[str, bool]:
     observed: dict[str, bool] = {}
     for watch in config.get("watches", []):
         if not watch.get("enabled", True):
             continue
         court_id = str(watch["id"])
-        window = booking_window(config, court_id, today)
+        window = booking_window(config, court_id, today, now)
         if window is None:
             continue
         start, end = window
@@ -339,8 +357,10 @@ def collect_alerts(state: dict, observed: dict[str, bool], muted: bool, today_is
 
     for key, is_open in observed.items():
         if key not in slots:
-            slots[key] = is_open
-            continue
+            if not is_open:
+                slots[key] = False
+                continue
+            slots[key] = False
         previous = bool(slots.get(key, False))
         if is_open and not previous:
             if key not in discovered:

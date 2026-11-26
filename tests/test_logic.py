@@ -91,6 +91,10 @@ class AlertTests(unittest.TestCase):
         state["initialized"] = True
         key = "73|2026-11-20|18:00-20:00"
         sent = collect_alerts(state, {key: True}, False, "2026-11-14")
+        self.assertEqual(sent, [key])
+        self.assertEqual(state["last_alerts"], [key])
+        acknowledge(state, sent)
+        sent = collect_alerts(state, {key: True}, False, "2026-11-14")
         self.assertEqual(sent, [])
         state["slots"][key] = False
         sent = collect_alerts(state, {key: True}, False, "2026-11-14")
@@ -108,6 +112,24 @@ class AlertTests(unittest.TestCase):
         sent = collect_alerts(state, {key: True}, False, "2026-11-14")
         self.assertEqual(sent, [key])
         self.assertEqual(state["last_alerts"], [key])
+
+    def test_new_occupied_key_does_not_alert(self):
+        state = fresh_state()
+        state["initialized"] = True
+        key = "73|2026-11-20|18:00-20:00"
+        sent = collect_alerts(state, {key: False}, False, "2026-11-14")
+        self.assertEqual(sent, [])
+        self.assertFalse(state["slots"][key])
+
+    def test_muted_new_open_key_is_queued(self):
+        state = fresh_state()
+        state["initialized"] = True
+        key = "73|2026-11-20|18:00-20:00"
+        sent = collect_alerts(state, {key: True}, True, "2026-11-14")
+        self.assertEqual(sent, [])
+        self.assertEqual(state["pending"], [key])
+        sent = collect_alerts(state, {key: True}, False, "2026-11-14")
+        self.assertEqual(sent, [key])
 
     def test_alert_history_keeps_ten(self):
         state = fresh_state()
@@ -332,6 +354,62 @@ class CalendarTests(unittest.TestCase):
         self.assertTrue(observed["47|2026-11-16|20:00-22:00"])
         self.assertTrue(observed["47|2026-11-30|20:00-22:00"])
         self.assertNotIn("47|2026-12-01|20:00-22:00", observed)
+
+    def test_release_trims_last_day_before_open(self):
+        today = date(2026, 11, 26)
+        seoul = ZoneInfo("Asia/Seoul")
+        config = {
+            "booking_groups": [
+                {
+                    "id": "sapryang",
+                    "courts": [47],
+                    "after_days": 1,
+                    "days": 30,
+                    "release": "09:00",
+                }
+            ],
+            "watches": [
+                {
+                    "id": 47,
+                    "enabled": True,
+                    "open": "08:00",
+                    "close": "22:00",
+                    "weekdays": list(range(7)),
+                    "slots": ["20:00-22:00"],
+                }
+            ],
+        }
+        before = datetime(2026, 11, 26, 8, 59, tzinfo=seoul)
+        after = datetime(2026, 11, 26, 9, 0, tzinfo=seoul)
+        self.assertEqual(
+            booking_window(config, 47, today, before),
+            (date(2026, 11, 27), date(2026, 12, 25)),
+        )
+        self.assertEqual(
+            booking_window(config, 47, today, after),
+            (date(2026, 11, 27), date(2026, 12, 26)),
+        )
+        self.assertEqual(crawl_end(config, today, before), date(2026, 12, 25))
+        self.assertEqual(crawl_end(config, today, after), date(2026, 12, 26))
+        calendars = {"47": _open_days(date(2026, 11, 26), date(2026, 12, 26))}
+        early = observed_slots(config, calendars, today, before)
+        late = observed_slots(config, calendars, today, after)
+        self.assertNotIn("47|2026-12-26|20:00-22:00", early)
+        self.assertTrue(late["47|2026-12-26|20:00-22:00"])
+
+    def test_empty_release_keeps_full_window(self):
+        today = date(2026, 11, 26)
+        seoul = ZoneInfo("Asia/Seoul")
+        now = datetime(2026, 11, 26, 8, 0, tzinfo=seoul)
+        config = {
+            "booking_groups": [
+                {"courts": [47], "after_days": 1, "days": 30, "release": ""}
+            ]
+        }
+        self.assertEqual(
+            booking_window(config, 47, today, now),
+            (date(2026, 11, 27), date(2026, 12, 26)),
+        )
 
     def test_status_command_is_exact(self):
         self.assertTrue(is_status_command("", "확인"))

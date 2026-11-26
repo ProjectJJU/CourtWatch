@@ -129,6 +129,17 @@
     return config;
   }
 
+  function normalizeRelease(value) {
+    if (value === undefined || value === null) return "09:00";
+    const text = String(value).trim();
+    if (!text) return "";
+    if (!/^\d{2}:\d{2}$/.test(text)) return "09:00";
+    const hour = Number(text.slice(0, 2));
+    const minute = Number(text.slice(3, 5));
+    if (hour > 23 || minute > 59) return "09:00";
+    return text;
+  }
+
   function defaultGroups() {
     return [
       {
@@ -137,6 +148,7 @@
         courts: [73],
         after_days: 2,
         days: 29,
+        release: "09:00",
         open: "06:00",
         close: "22:00",
       },
@@ -146,6 +158,7 @@
         courts: [47, 64, 66, 67],
         after_days: 1,
         days: 30,
+        release: "09:00",
         open: "08:00",
         close: "22:00",
       },
@@ -160,6 +173,7 @@
       courts: (group.courts || []).map(Number),
       after_days: clamp(group.after_days, 0, 60, 0),
       days: clamp(group.days, 1, 60, 1),
+      release: normalizeRelease(group.release),
       open: group.open || "06:00",
       close: group.close || "22:00",
     }));
@@ -265,6 +279,7 @@
       lines.push(`    courts: ${dumpFlow((group.courts || []).map(Number))}`);
       lines.push(`    after_days: ${group.after_days}`);
       lines.push(`    days: ${group.days}`);
+      lines.push(`    release: ${quote(group.release || "")}`);
       lines.push(`    open: ${quote(group.open || "06:00")}`);
       lines.push(`    close: ${quote(group.close || "22:00")}`);
     });

@@ -66,9 +66,9 @@ def run() -> int:
         crawled = True
     else:
         try:
-            calendars, renamed = crawl_courts(config, now.date())
+            calendars, renamed = crawl_courts(config, now.date(), now=now)
             config_changed = renamed
-            observed = observed_slots(config, calendars, now.date())
+            observed = observed_slots(config, calendars, now.date(), now)
             note_recovery(state)
             alerts = collect_alerts(state, observed, muted, now.date().isoformat())
             crawled = True

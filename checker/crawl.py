@@ -122,9 +122,11 @@ def _fetch_json(url: str) -> object:
         raise CrawlError("reservation list was not readable") from exc
 
 
-def _read_court(watch: dict, today: date, fetcher) -> tuple[str, dict, str]:
+def _read_court(watch: dict, today: date, fetcher, now=None) -> tuple[str, dict, str]:
     court_id = str(watch["id"])
-    window = booking_window({"booking_groups": watch.get("_groups") or []}, court_id, today)
+    window = booking_window(
+        {"booking_groups": watch.get("_groups") or []}, court_id, today, now
+    )
     if window is None:
         return court_id, {}, ""
     start, end = window
@@ -142,7 +144,7 @@ def _read_court(watch: dict, today: date, fetcher) -> tuple[str, dict, str]:
     return court_id, calendar_days(start, end, reservations, rests), name
 
 
-def crawl_courts(config: dict, today: date, fetcher=None) -> tuple[dict[str, dict], bool]:
+def crawl_courts(config: dict, today: date, fetcher=None, now=None) -> tuple[dict[str, dict], bool]:
     watches = [watch for watch in config.get("watches", []) if watch.get("enabled", True)]
     if not watches:
         return {}, False
@@ -155,7 +157,7 @@ def crawl_courts(config: dict, today: date, fetcher=None) -> tuple[dict[str, dic
     renamed = False
     workers = min(len(jobs), 8)
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = [pool.submit(_read_court, watch, today, load) for watch in jobs]
+        futures = [pool.submit(_read_court, watch, today, load, now) for watch in jobs]
         try:
             for future in as_completed(futures):
                 court_id, days, name = future.result()
