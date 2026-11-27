@@ -278,6 +278,11 @@ h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 6px; }
   gap: 8px;
 }
 
+.slot-note {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
 .slot-pills {
   display: flex;
   flex-wrap: wrap;

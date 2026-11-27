@@ -92,8 +92,7 @@ async function loadDocs() {
   state.config = configSnap.data() || {};
   state.config.presets = state.config.presets || [];
   state.config.sleep = state.config.sleep || { start: "02:00", end: "02:00" };
-  state.config.booking_groups = cfgApi.normalizeGroups(state.config.booking_groups);
-  state.config.watches = (state.config.watches || []).map(cfgApi.normalizeWatch);
+  state.config = cfgApi.scrubClosedSlots(state.config);
   syncGroupsFromWatches();
   const statusSnap = await db.collection("courtwatch").doc("state").get();
   state.status = statusSnap.exists ? statusSnap.data() : null;
@@ -133,19 +132,43 @@ function groupWeekdaySlots(group) {
   return watches[0] ? [...(watches[0].weekday_slots || [])] : [];
 }
 
+function groupSaturdaySlots(group) {
+  const watches = watchesInGroup(group);
+  return watches[0] ? [...(watches[0].saturday_slots || [])] : [];
+}
+
+function groupSundaySlots(group) {
+  const watches = watchesInGroup(group);
+  const slots = watches[0] ? [...(watches[0].sunday_slots || [])] : [];
+  const closed = cfgApi.closedSlotsFor(group, 6);
+  return slots.filter((slot) => !closed.has(slot));
+}
+
 function groupWeekendSlots(group) {
   const watches = watchesInGroup(group);
   return watches[0] ? [...(watches[0].weekend_slots || [])] : [];
+}
+
+function closedDayNote(group, weekday) {
+  const slots = [...cfgApi.closedSlotsFor(group, weekday)];
+  if (!slots.length) return "";
+  const text = slots.map((slot) => String(slot).replace("-", "–")).join(", ");
+  return `${cfgApi.WEEKDAYS[weekday]}요일 ${text}은 예약이 없습니다.`;
 }
 
 function applyGroupSlots(group, kind, slots) {
   const sorted = [...slots].sort();
   watchesInGroup(group).forEach((watch) => {
     if (kind === "weekday") watch.weekday_slots = [...sorted];
-    else watch.weekend_slots = [...sorted];
-    const next = cfgApi.normalizeWatch(watch);
-    Object.assign(watch, next);
+    else if (kind === "saturday") watch.saturday_slots = [...sorted];
+    else if (kind === "sunday") watch.sunday_slots = [...sorted];
+    else {
+      watch.saturday_slots = [...sorted];
+      watch.sunday_slots = [...sorted];
+    }
+    Object.assign(watch, cfgApi.normalizeWatch(watch));
   });
+  state.config = cfgApi.scrubClosedSlots(state.config);
 }
 
 function groupExtras(group) {
@@ -164,6 +187,7 @@ function applyGroupExtras(group, extras) {
     watch.extras = JSON.parse(JSON.stringify(normalized));
     Object.assign(watch, cfgApi.normalizeWatch(watch));
   });
+  state.config = cfgApi.scrubClosedSlots(state.config);
   return true;
 }
 
@@ -254,9 +278,7 @@ async function saveRepo() {
     say("저장됐지만 release가 비었습니다. 다시 저장하거나 콘솔로 확인하세요.");
     console.warn("saved booking_groups release", groups);
   }
-  state.config = payload;
-  state.config.booking_groups = cfgApi.normalizeGroups(state.config.booking_groups);
-  state.config.watches = (state.config.watches || []).map(cfgApi.normalizeWatch);
+  state.config = cfgApi.scrubClosedSlots(payload);
   closeEditors();
   render();
   say(lost ? "저장 확인에 실패했습니다." : "저장했습니다. 다음 검사부터 적용됩니다.");
@@ -442,21 +464,13 @@ function renderWatchSummary(group) {
   const wrap = document.createElement("div");
   wrap.className = "watch-summary";
 
-  const weekdayBlock = document.createElement("div");
-  weekdayBlock.className = "watch-block";
-  const weekdayTitle = document.createElement("p");
-  weekdayTitle.className = "group-label";
-  weekdayTitle.textContent = "평일";
-  weekdayBlock.append(weekdayTitle, renderSlotPills(groupWeekdaySlots(group)));
-  wrap.append(weekdayBlock);
-
-  const weekendBlock = document.createElement("div");
-  weekendBlock.className = "watch-block";
-  const weekendTitle = document.createElement("p");
-  weekendTitle.className = "group-label";
-  weekendTitle.textContent = "주말";
-  weekendBlock.append(weekendTitle, renderSlotPills(groupWeekendSlots(group)));
-  wrap.append(weekendBlock);
+  appendSlotBlock(wrap, "평일", groupWeekdaySlots(group), "");
+  if (cfgApi.weekendSplit(group)) {
+    appendSlotBlock(wrap, "토요일", groupSaturdaySlots(group), closedDayNote(group, 5));
+    appendSlotBlock(wrap, "일요일", groupSundaySlots(group), closedDayNote(group, 6));
+  } else {
+    appendSlotBlock(wrap, "주말", groupWeekendSlots(group), "");
+  }
 
   const extras = groupExtras(group);
   if (extras.length) {
@@ -485,10 +499,24 @@ function renderWatchSummary(group) {
   return wrap;
 }
 
+function bookableKeys(keys) {
+  const groups = (state.config && state.config.booking_groups) || [];
+  return (keys || []).filter((key) => {
+    const parts = String(key).split("|");
+    if (parts.length < 3) return true;
+    const courtId = parts[0];
+    const day = parts[1];
+    const slot = parts.slice(2).join("|");
+    const group = groups.find((item) => (item.courts || []).map(String).includes(String(courtId)));
+    if (!group) return true;
+    return !cfgApi.closedSlotsFor(group, checkApi.weekdayIndex(day)).has(slot);
+  });
+}
+
 function renderKeyList(keys) {
   const list = document.createElement("ul");
   list.className = "status-list key-list";
-  checkApi.describe(state.config || {}, keys).forEach((item) => {
+  checkApi.describe(state.config || {}, bookableKeys(keys)).forEach((item) => {
     const row = document.createElement("li");
     const name = document.createElement("strong");
     name.textContent = plain(item.name) || item.id;
@@ -558,11 +586,11 @@ function renderStatus() {
     box.append(error);
   }
 
-  const open = current.open_now || [];
-  const alerts = statusAlertKeys(current);
-  const history = (current.alert_history || []).filter(
-    (item) => item && Array.isArray(item.keys) && item.keys.length
-  );
+  const open = bookableKeys(current.open_now || []);
+  const alerts = bookableKeys(statusAlertKeys(current));
+  const history = (current.alert_history || [])
+    .map((item) => (item && Array.isArray(item.keys) ? { ...item, keys: bookableKeys(item.keys) } : item))
+    .filter((item) => item && Array.isArray(item.keys) && item.keys.length);
 
   box.append(
     foldSection("alarm", "알람 · 이번 주기", String(alerts.length), (body) => {
@@ -782,9 +810,48 @@ function numberField(label, value, min, max, onChange) {
   return field;
 }
 
+function slotWeekdays(kind) {
+  if (kind === "saturday") return [5];
+  if (kind === "sunday") return [6];
+  if (kind === "weekend") return [5, 6];
+  return [0, 1, 2, 3, 4];
+}
+
+function appendSlotBlock(parent, title, slots, note) {
+  const block = document.createElement("div");
+  block.className = "watch-block";
+  const heading = document.createElement("p");
+  heading.className = "group-label";
+  heading.textContent = title;
+  block.append(heading, renderSlotPills(slots));
+  if (note) {
+    const hint = document.createElement("p");
+    hint.className = "hint slot-note";
+    hint.textContent = note;
+    block.append(hint);
+  }
+  parent.append(block);
+}
+
+function appendSlotEditor(parent, group, title, kind, selected, note) {
+  const label = document.createElement("p");
+  label.className = "group-label";
+  label.textContent = title;
+  const row = document.createElement("div");
+  row.className = "chips";
+  renderSlotChips(row, group, kind, selected);
+  parent.append(label, row);
+  if (note) {
+    const hint = document.createElement("p");
+    hint.className = "hint slot-note";
+    hint.textContent = note;
+    parent.append(hint);
+  }
+}
+
 function renderSlotChips(row, group, kind, selected) {
   row.replaceChildren();
-  cfgApi.menuSlots(group.open || "06:00", group.close || "22:00").forEach((slot) => {
+  cfgApi.offeredSlots(group, slotWeekdays(kind)).forEach((slot) => {
     const active = selected.includes(slot);
     row.append(
       chip(slot.replace("-", "–"), active, () => {
@@ -1014,7 +1081,8 @@ function renderGroupDetail() {
             open: group.open,
             close: group.close,
             weekday_slots: groupWeekdaySlots(group),
-            weekend_slots: groupWeekendSlots(group),
+            saturday_slots: groupSaturdaySlots(group),
+            sunday_slots: groupSundaySlots(group),
             extras: groupExtras(group),
           })
         );
@@ -1055,26 +1123,23 @@ function renderGroupDetail() {
   if (!state.editingGroupWatch) {
     watchSection.append(renderWatchSummary(group));
   } else {
-    const weekdayLabel = document.createElement("p");
-    weekdayLabel.className = "group-label";
-    weekdayLabel.textContent = "평일 감시 시간";
-    const weekdayRow = document.createElement("div");
-    weekdayRow.className = "chips";
-    renderSlotChips(weekdayRow, group, "weekday", groupWeekdaySlots(group));
-    const weekendLabel = document.createElement("p");
-    weekendLabel.className = "group-label";
-    weekendLabel.textContent = "주말 감시 시간";
-    const weekendRow = document.createElement("div");
-    weekendRow.className = "chips";
-    renderSlotChips(weekendRow, group, "weekend", groupWeekendSlots(group));
-    watchSection.append(weekdayLabel, weekdayRow, weekendLabel, weekendRow);
+    appendSlotEditor(watchSection, group, "평일 감시 시간", "weekday", groupWeekdaySlots(group), "");
+    if (cfgApi.weekendSplit(group)) {
+      appendSlotEditor(watchSection, group, "토요일 감시 시간", "saturday", groupSaturdaySlots(group), closedDayNote(group, 5));
+      appendSlotEditor(watchSection, group, "일요일 감시 시간", "sunday", groupSundaySlots(group), closedDayNote(group, 6));
+    } else {
+      appendSlotEditor(watchSection, group, "주말 감시 시간", "weekend", groupWeekendSlots(group), "");
+    }
 
     const extrasLabel = document.createElement("p");
     extrasLabel.className = "group-label";
     extrasLabel.textContent = "추가 감시";
     const extrasHint = document.createElement("p");
     extrasHint.className = "hint";
-    extrasHint.textContent = "특정 요일이나 날짜만 시간을 더하거나, 그날만 다른 시간으로 바꿉니다.";
+    const closedNotes = [5, 6].map((day) => closedDayNote(group, day)).filter(Boolean);
+    extrasHint.textContent = closedNotes.length
+      ? `특정 요일이나 날짜만 시간을 더하거나, 그날만 다른 시간으로 바꿉니다. ${closedNotes.join(" ")}`
+      : "특정 요일이나 날짜만 시간을 더하거나, 그날만 다른 시간으로 바꿉니다.";
     watchSection.append(extrasLabel, extrasHint);
     renderExtrasEditor(watchSection, group);
   }
@@ -1184,7 +1249,8 @@ function renderExtrasEditor(detail, group) {
     slotLabel.textContent = "시간";
     const slotRow = document.createElement("div");
     slotRow.className = "chips";
-    cfgApi.menuSlots(group.open || "06:00", group.close || "22:00").forEach((slot) => {
+    const extraDays = (extra.weekdays || []).length ? extra.weekdays : [0, 1, 2, 3, 4, 5, 6];
+    cfgApi.offeredSlots(group, extraDays).forEach((slot) => {
       const selected = (extra.slots || []).includes(slot);
       slotRow.append(
         chip(slot.replace("-", "–"), selected, () => {

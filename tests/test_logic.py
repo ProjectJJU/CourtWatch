@@ -275,6 +275,75 @@ class CalendarTests(unittest.TestCase):
         self.assertTrue(observed["73|2026-11-21|08:00-10:00"])
         self.assertNotIn("73|2026-11-21|20:00-22:00", observed)
 
+    def test_stadium_sunday_evening_is_not_bookable(self):
+        saturday = date(2026, 11, 21)
+        sunday = date(2026, 11, 22)
+        config = {
+            "booking_groups": [
+                {"id": "stadium", "courts": [73], "after_days": 0, "days": 2},
+                {"id": "sapryang", "courts": [47], "after_days": 0, "days": 2},
+            ],
+            "watches": [
+                {
+                    "id": 73,
+                    "enabled": True,
+                    "open": "06:00",
+                    "close": "22:00",
+                    "weekday_slots": [],
+                    "weekend_slots": ["18:00-20:00", "20:00-22:00"],
+                    "extras": [
+                        {"weekdays": [6], "dates": [], "slots": ["18:00-20:00"], "replace": False},
+                    ],
+                },
+                {
+                    "id": 47,
+                    "enabled": True,
+                    "open": "06:00",
+                    "close": "22:00",
+                    "weekday_slots": [],
+                    "saturday_slots": ["18:00-20:00"],
+                    "sunday_slots": ["18:00-20:00", "20:00-22:00"],
+                },
+            ],
+        }
+        calendars = {
+            "73": _open_days(saturday, sunday),
+            "47": _open_days(saturday, sunday),
+        }
+        observed = observed_slots(config, calendars, saturday)
+        self.assertTrue(observed["73|2026-11-21|18:00-20:00"])
+        self.assertTrue(observed["73|2026-11-22|20:00-22:00"])
+        self.assertNotIn("73|2026-11-22|18:00-20:00", observed)
+        self.assertTrue(observed["47|2026-11-22|18:00-20:00"])
+        self.assertNotIn("47|2026-11-21|20:00-22:00", observed)
+
+    def test_empty_closed_slots_keep_sunday_evening(self):
+        sunday = date(2026, 11, 22)
+        config = {
+            "booking_groups": [
+                {
+                    "id": "stadium",
+                    "courts": [73],
+                    "after_days": 0,
+                    "days": 1,
+                    "closed_slots": [],
+                }
+            ],
+            "watches": [
+                {
+                    "id": 73,
+                    "enabled": True,
+                    "open": "06:00",
+                    "close": "22:00",
+                    "weekday_slots": [],
+                    "sunday_slots": ["18:00-20:00"],
+                    "saturday_slots": [],
+                }
+            ],
+        }
+        observed = observed_slots(config, {"73": _open_days(sunday, sunday)}, sunday)
+        self.assertTrue(observed["73|2026-11-22|18:00-20:00"])
+
     def test_extra_slots_add_and_replace(self):
         friday = date(2026, 11, 20)
         wednesday = date(2026, 11, 18)

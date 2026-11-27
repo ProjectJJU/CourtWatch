@@ -7,6 +7,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
   const COURT_URL = "https://www.yssisul.or.kr/rent/#/{id}/rent/step1";
+  const STADIUM_CLOSED_SLOTS = [{ weekdays: [6], slots: ["18:00-20:00"] }];
 
   function parseScalar(raw) {
     const value = String(raw).trim();
@@ -142,17 +143,18 @@
   }
 
   function prepareConfigForSave(config) {
+    const scrubbed = scrubClosedSlots(config || {});
     const next = {
-      timezone: config.timezone || "Asia/Seoul",
+      timezone: scrubbed.timezone || "Asia/Seoul",
       lookahead_days: 35,
-      alerts_enabled: config.alerts_enabled !== false,
+      alerts_enabled: scrubbed.alerts_enabled !== false,
       sleep: {
-        start: (config.sleep && config.sleep.start) || "02:00",
-        end: (config.sleep && config.sleep.end) || "02:00",
+        start: (scrubbed.sleep && scrubbed.sleep.start) || "02:00",
+        end: (scrubbed.sleep && scrubbed.sleep.end) || "02:00",
       },
-      presets: Array.isArray(config.presets) ? config.presets : [],
-      booking_groups: normalizeGroups(config.booking_groups),
-      watches: (config.watches || []).map((watch) => {
+      presets: Array.isArray(scrubbed.presets) ? scrubbed.presets : [],
+      booking_groups: scrubbed.booking_groups,
+      watches: scrubbed.watches.map((watch) => {
         const normalized = normalizeWatch(watch);
         normalized.extras = pruneEmptyExtras(normalized.extras);
         return normalized;
@@ -172,6 +174,7 @@
         release: "09:00",
         open: "06:00",
         close: "22:00",
+        closed_slots: STADIUM_CLOSED_SLOTS.map(copyClosedRule),
       },
       {
         id: "sapryang",
@@ -197,7 +200,86 @@
       release: normalizeRelease(group.release),
       open: group.open || "06:00",
       close: group.close || "22:00",
+      closed_slots: normalizeClosedSlots(group),
     }));
+  }
+
+  function copyClosedRule(rule) {
+    return {
+      weekdays: [...(rule.weekdays || [])],
+      slots: [...(rule.slots || [])],
+    };
+  }
+
+  function uniqueSlots(list) {
+    return [...new Set((list || []).map(String))].sort();
+  }
+
+  function normalizeClosedSlots(group) {
+    const raw = group && group.closed_slots;
+    if (raw == null) {
+      return group && group.id === "stadium" ? STADIUM_CLOSED_SLOTS.map(copyClosedRule) : [];
+    }
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((rule) => ({
+        weekdays: [...new Set((rule.weekdays || []).map(Number).filter((day) => day >= 0 && day <= 6))].sort(
+          (a, b) => a - b
+        ),
+        slots: uniqueSlots(rule.slots),
+      }))
+      .filter((rule) => rule.weekdays.length && rule.slots.length);
+  }
+
+  function closedSlotsFor(group, weekday) {
+    const slots = new Set();
+    normalizeClosedSlots(group).forEach((rule) => {
+      if (rule.weekdays.includes(Number(weekday))) rule.slots.forEach((slot) => slots.add(slot));
+    });
+    return slots;
+  }
+
+  function offeredSlots(group, weekdays) {
+    const days = (Array.isArray(weekdays) && weekdays.length ? weekdays : [0, 1, 2, 3, 4, 5, 6]).map(Number);
+    return menuSlots(group && group.open, group && group.close).filter((slot) =>
+      days.some((day) => !closedSlotsFor(group, day).has(slot))
+    );
+  }
+
+  function weekendSplit(group) {
+    return offeredSlots(group, [5]).join("|") !== offeredSlots(group, [6]).join("|");
+  }
+
+  function scrubClosedSlots(config) {
+    const source = config || {};
+    const groups = normalizeGroups(source.booking_groups);
+    const watches = (source.watches || []).map((watch) => {
+      const next = normalizeWatch(watch);
+      const group = groups.find((item) => (item.courts || []).map(Number).includes(Number(next.id)));
+      if (!group) return next;
+      next.saturday_slots = next.saturday_slots.filter((slot) => !closedSlotsFor(group, 5).has(slot));
+      next.sunday_slots = next.sunday_slots.filter((slot) => !closedSlotsFor(group, 6).has(slot));
+      next.weekend_slots = uniqueSlots([...next.saturday_slots, ...next.sunday_slots]);
+      next.extras = next.extras.map((extra) => {
+        if (!(extra.weekdays || []).length || (extra.dates || []).length) return extra;
+        const offered = new Set(offeredSlots(group, extra.weekdays));
+        return { ...extra, slots: extra.slots.filter((slot) => offered.has(slot)) };
+      });
+      const weekdays = [];
+      if (next.weekday_slots.length) weekdays.push(0, 1, 2, 3, 4);
+      if (next.saturday_slots.length) weekdays.push(5);
+      if (next.sunday_slots.length) weekdays.push(6);
+      next.extras.forEach((extra) => weekdays.push(...extra.weekdays));
+      next.weekdays = [...new Set(weekdays)].sort((a, b) => a - b);
+      next.slots = uniqueSlots([
+        ...next.weekday_slots,
+        ...next.saturday_slots,
+        ...next.sunday_slots,
+        ...next.extras.flatMap((extra) => extra.slots),
+      ]);
+      return next;
+    });
+    return { ...source, booking_groups: groups, watches };
   }
 
   function normalizeExtra(extra) {
@@ -227,33 +309,46 @@
     next.enabled = next.enabled !== false;
     next.open = next.open || "06:00";
     next.close = next.close || "22:00";
+    const hasDaySplit =
+      Object.prototype.hasOwnProperty.call(next, "saturday_slots") ||
+      Object.prototype.hasOwnProperty.call(next, "sunday_slots");
     const hasSplit =
+      hasDaySplit ||
       Object.prototype.hasOwnProperty.call(next, "weekday_slots") ||
       Object.prototype.hasOwnProperty.call(next, "weekend_slots");
     if (!hasSplit) {
       const days = new Set((next.weekdays || []).map(Number));
-      const slots = [...(next.slots || [])];
+      const slots = uniqueSlots(next.slots);
       const weekdayDays = [0, 1, 2, 3, 4].filter((day) => days.has(day));
       const weekendDays = [5, 6].filter((day) => days.has(day));
       next.weekday_slots = weekdayDays.length ? slots : [];
-      next.weekend_slots = weekendDays.length ? slots : [];
+      next.saturday_slots = weekendDays.length ? [...slots] : [];
+      next.sunday_slots = weekendDays.length ? [...slots] : [];
     } else {
-      next.weekday_slots = [...(next.weekday_slots || [])];
-      next.weekend_slots = [...(next.weekend_slots || [])];
+      const weekend = uniqueSlots(next.weekend_slots);
+      next.weekday_slots = uniqueSlots(next.weekday_slots);
+      next.saturday_slots = hasDaySplit && Object.prototype.hasOwnProperty.call(next, "saturday_slots")
+        ? uniqueSlots(next.saturday_slots)
+        : [...weekend];
+      next.sunday_slots = hasDaySplit && Object.prototype.hasOwnProperty.call(next, "sunday_slots")
+        ? uniqueSlots(next.sunday_slots)
+        : [...weekend];
     }
+    next.weekend_slots = uniqueSlots([...next.saturday_slots, ...next.sunday_slots]);
     const rawExtras = Array.isArray(next.extras) ? next.extras : [];
     next.extras = rawExtras.map(normalizeExtra);
     const weekdays = [];
-    if ((next.weekday_slots || []).length) weekdays.push(0, 1, 2, 3, 4);
-    if ((next.weekend_slots || []).length) weekdays.push(5, 6);
+    if (next.weekday_slots.length) weekdays.push(0, 1, 2, 3, 4);
+    if (next.saturday_slots.length) weekdays.push(5);
+    if (next.sunday_slots.length) weekdays.push(6);
     next.extras.forEach((extra) => weekdays.push(...extra.weekdays));
     next.weekdays = [...new Set(weekdays)].sort((a, b) => a - b);
-    const allSlots = [
-      ...(next.weekday_slots || []),
-      ...(next.weekend_slots || []),
+    next.slots = uniqueSlots([
+      ...next.weekday_slots,
+      ...next.saturday_slots,
+      ...next.sunday_slots,
       ...next.extras.flatMap((extra) => extra.slots),
-    ];
-    next.slots = [...new Set(allSlots)].sort();
+    ]);
     return next;
   }
 
@@ -303,6 +398,13 @@
       lines.push(`    release: ${quote(group.release || "")}`);
       lines.push(`    open: ${quote(group.open || "06:00")}`);
       lines.push(`    close: ${quote(group.close || "22:00")}`);
+      if ((group.closed_slots || []).length) {
+        lines.push("    closed_slots:");
+        group.closed_slots.forEach((rule) => {
+          lines.push(`      - weekdays: ${dumpFlow((rule.weekdays || []).map(Number))}`);
+          lines.push(`        slots: ${dumpFlow(rule.slots || [])}`);
+        });
+      }
     });
     lines.push("watches:");
     (config.watches || []).map(normalizeWatch).forEach((watch) => {
@@ -318,6 +420,8 @@
         `slots: ${dumpFlow(watch.slots || [])}`,
         `weekday_slots: ${dumpFlow(watch.weekday_slots || [])}`,
         `weekend_slots: ${dumpFlow(watch.weekend_slots || [])}`,
+        `saturday_slots: ${dumpFlow(watch.saturday_slots || [])}`,
+        `sunday_slots: ${dumpFlow(watch.sunday_slots || [])}`,
       ];
       fields.forEach((field, index) => {
         lines.push((index === 0 ? "  - " : "    ") + field);
@@ -376,6 +480,7 @@
   }
 
   function defaultWatch(id, url, extras) {
+    const weekend = (extras && extras.weekend_slots) || [];
     return normalizeWatch({
       id: id,
       name: `코트 ${id}`,
@@ -384,7 +489,8 @@
       open: (extras && extras.open) || "06:00",
       close: (extras && extras.close) || "22:00",
       weekday_slots: (extras && extras.weekday_slots) || ["20:00-22:00"],
-      weekend_slots: (extras && extras.weekend_slots) || [],
+      saturday_slots: (extras && extras.saturday_slots) || weekend,
+      sunday_slots: (extras && extras.sunday_slots) || weekend,
       extras: (extras && extras.extras) || [],
     });
   }
@@ -412,5 +518,9 @@
     prepareConfigForSave,
     formatWeekdays,
     hmToMinutes,
+    closedSlotsFor,
+    offeredSlots,
+    weekendSplit,
+    scrubClosedSlots,
   };
 });

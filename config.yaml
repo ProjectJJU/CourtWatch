@@ -14,6 +14,9 @@ booking_groups:
     release: "09:00"
     open: "06:00"
     close: "22:00"
+    closed_slots:
+      - weekdays: [6]
+        slots: ["18:00-20:00"]
   - id: sapryang
     name: "삽량체육공원"
     courts: [47, 64, 66, 67]

@@ -13,6 +13,9 @@ assert.strictEqual(config.watches.length, 5);
 assert.strictEqual(config.watches[0].id, 73);
 assert.deepStrictEqual(config.watches[0].weekday_slots, ["20:00-22:00"]);
 assert.deepStrictEqual(config.watches[0].weekend_slots, []);
+assert.deepStrictEqual(config.watches[0].saturday_slots, []);
+assert.deepStrictEqual(config.watches[0].sunday_slots, []);
+assert.deepStrictEqual(config.booking_groups[0].closed_slots, [{ weekdays: [6], slots: ["18:00-20:00"] }]);
 assert.strictEqual(config.booking_groups[0].after_days, 2);
 assert.strictEqual(config.booking_groups[0].days, 29);
 assert.strictEqual(config.booking_groups[0].release, "09:00");
@@ -29,6 +32,8 @@ assert.strictEqual(again.booking_groups[0].release, "09:00");
 assert.strictEqual(again.watches[4].url, config.watches[4].url);
 assert.deepStrictEqual(again.watches[0].weekday_slots, config.watches[0].weekday_slots);
 assert.deepStrictEqual(again.watches[0].weekend_slots, config.watches[0].weekend_slots);
+assert.deepStrictEqual(again.watches[0].sunday_slots, []);
+assert.deepStrictEqual(again.booking_groups[0].closed_slots, config.booking_groups[0].closed_slots);
 
 const normalized = configApi.normalizeGroups([{ id: "x", courts: [1], after_days: 0, days: 1 }]);
 assert.strictEqual(normalized[0].release, "09:00");
@@ -37,6 +42,26 @@ const blank = configApi.normalizeGroups([
 ]);
 assert.strictEqual(blank[0].release, "");
 assert.strictEqual(configApi.normalizeRelease("09:00:00"), "09:00");
+const stadium = configApi.normalizeGroups([{ id: "stadium", courts: [73], after_days: 2, days: 29 }]);
+assert.deepStrictEqual(stadium[0].closed_slots, [{ weekdays: [6], slots: ["18:00-20:00"] }]);
+assert.strictEqual(configApi.weekendSplit(stadium[0]), true);
+assert.strictEqual(configApi.offeredSlots(stadium[0], [6]).includes("18:00-20:00"), false);
+assert.strictEqual(configApi.offeredSlots(stadium[0], [5]).includes("18:00-20:00"), true);
+assert.strictEqual(configApi.weekendSplit(config.booking_groups[1]), false);
+const scrubbed = configApi.scrubClosedSlots({
+  booking_groups: [{ id: "stadium", courts: [73], after_days: 2, days: 29 }],
+  watches: [{
+    id: 73,
+    weekday_slots: ["20:00-22:00"],
+    weekend_slots: ["18:00-20:00", "20:00-22:00"],
+    extras: [{ weekdays: [6], dates: [], slots: ["18:00-20:00"], replace: false }],
+  }],
+});
+assert.deepStrictEqual(scrubbed.watches[0].saturday_slots, ["18:00-20:00", "20:00-22:00"]);
+assert.deepStrictEqual(scrubbed.watches[0].sunday_slots, ["20:00-22:00"]);
+assert.deepStrictEqual(scrubbed.watches[0].extras[0].slots, []);
+const kept = configApi.normalizeGroups([{ id: "stadium", courts: [73], after_days: 2, days: 29, closed_slots: [] }]);
+assert.deepStrictEqual(kept[0].closed_slots, []);
 const prepared = configApi.prepareConfigForSave({
   booking_groups: [{ id: "stadium", courts: [73], after_days: 2, days: 29 }],
   watches: [{ id: 73, name: "C", url: "https://example.test/73" }],

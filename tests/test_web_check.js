@@ -122,4 +122,45 @@ assert.strictEqual(described[0].name, "실내테니스장 시민C코트");
 assert.strictEqual(described[0].weekday, "목");
 assert.strictEqual(described[0].slot, "20:00-22:00");
 
+const weekend = check.openKeys(
+  {
+    booking_groups: [
+      { id: "stadium", courts: [73], after_days: 0, days: 2 },
+      { id: "sapryang", courts: [47], after_days: 0, days: 2 },
+    ],
+    watches: [
+      {
+        id: 73,
+        enabled: true,
+        open: "06:00",
+        close: "22:00",
+        weekday_slots: [],
+        weekend_slots: ["18:00-20:00", "20:00-22:00"],
+        extras: [{ weekdays: [6], slots: ["18:00-20:00"], replace: false }],
+      },
+      {
+        id: 47,
+        enabled: true,
+        open: "06:00",
+        close: "22:00",
+        weekday_slots: [],
+        saturday_slots: ["18:00-20:00"],
+        sunday_slots: ["20:00-22:00"],
+      },
+    ],
+  },
+  {
+    "73": { ranges: {}, rest: new Set() },
+    "47": { ranges: {}, rest: new Set() },
+  },
+  "2026-11-21"
+);
+assert.strictEqual(weekend.includes("73|2026-11-21|18:00-20:00"), true);
+assert.strictEqual(weekend.includes("73|2026-11-21|20:00-22:00"), true);
+assert.strictEqual(weekend.includes("73|2026-11-22|18:00-20:00"), false);
+assert.strictEqual(weekend.includes("73|2026-11-22|20:00-22:00"), true);
+assert.strictEqual(weekend.includes("47|2026-11-21|18:00-20:00"), true);
+assert.strictEqual(weekend.includes("47|2026-11-22|20:00-22:00"), true);
+assert.strictEqual(weekend.includes("47|2026-11-22|18:00-20:00"), false);
+
 console.log("web check ok");

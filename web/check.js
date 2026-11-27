@@ -137,12 +137,46 @@
     return dates;
   }
 
+  function groupForCourt(config, courtId) {
+    return (config.booking_groups || []).find((group) =>
+      (group.courts || []).map(String).includes(String(courtId))
+    ) || null;
+  }
+
+  function closedSlotRules(group) {
+    if (!group) return [];
+    if (group.closed_slots == null && group.id === "stadium") {
+      return [{ weekdays: [6], slots: ["18:00-20:00"] }];
+    }
+    return Array.isArray(group.closed_slots) ? group.closed_slots : [];
+  }
+
+  function closedSlotsFor(group, weekday) {
+    const slots = new Set();
+    closedSlotRules(group).forEach((rule) => {
+      const days = (rule.weekdays || []).map(Number);
+      if (!days.includes(Number(weekday))) return;
+      (rule.slots || []).forEach((slot) => slots.add(String(slot)));
+    });
+    return slots;
+  }
+
   function baseSlotsForDay(watch, weekday) {
+    const hasDays =
+      Object.prototype.hasOwnProperty.call(watch, "saturday_slots") ||
+      Object.prototype.hasOwnProperty.call(watch, "sunday_slots");
     const hasSplit =
+      hasDays ||
       Object.prototype.hasOwnProperty.call(watch, "weekday_slots") ||
       Object.prototype.hasOwnProperty.call(watch, "weekend_slots");
     if (hasSplit) {
       if (weekday < 5) return [...(watch.weekday_slots || [])].map(String);
+      if (hasDays) {
+        const source = weekday === 5
+          ? (Object.prototype.hasOwnProperty.call(watch, "saturday_slots") ? watch.saturday_slots : watch.weekend_slots)
+          : (Object.prototype.hasOwnProperty.call(watch, "sunday_slots") ? watch.sunday_slots : watch.weekend_slots);
+        return [...(source || [])].map(String);
+      }
       return [...(watch.weekend_slots || [])].map(String);
     }
     const weekdays = new Set((watch.weekdays || []).map(Number));
@@ -158,26 +192,31 @@
     return false;
   }
 
-  function slotsForDay(watch, weekday, dayIso) {
+  function slotsForDay(watch, weekday, dayIso, group) {
     const base = baseSlotsForDay(watch, weekday);
     const extras = (watch.extras || []).filter((item) => item && typeof item === "object");
-    if (!extras.length) return base;
-    const matched = extras.filter((item) => extraMatches(item, weekday, dayIso || ""));
-    if (!matched.length) return base;
-    const add = [];
-    const replace = [];
-    let replaced = false;
-    matched.forEach((extra) => {
-      const slots = [...(extra.slots || [])].map(String);
-      if (extra.replace) {
-        replaced = true;
-        replace.push(...slots);
-      } else {
-        add.push(...slots);
+    let chosen = base;
+    if (extras.length) {
+      const matched = extras.filter((item) => extraMatches(item, weekday, dayIso || ""));
+      if (matched.length) {
+        const add = [];
+        const replace = [];
+        let replaced = false;
+        matched.forEach((extra) => {
+          const slots = [...(extra.slots || [])].map(String);
+          if (extra.replace) {
+            replaced = true;
+            replace.push(...slots);
+          } else {
+            add.push(...slots);
+          }
+        });
+        chosen = replaced ? [...new Set([...replace, ...add])].sort() : [...new Set([...base, ...add])].sort();
       }
-    });
-    if (replaced) return [...new Set([...replace, ...add])].sort();
-    return [...new Set([...base, ...add])].sort();
+    }
+    const closed = closedSlotsFor(group, weekday);
+    if (!closed.size) return chosen;
+    return chosen.filter((slot) => !closed.has(slot));
   }
 
   function openKeys(config, calendars, todayIso, nowHm) {
@@ -190,11 +229,12 @@
       const calendar = calendars[courtId] || {};
       const ranges = calendar.ranges || {};
       const rest = calendar.rest instanceof Set ? calendar.rest : new Set(calendar.rest || []);
+      const group = groupForCourt(config, courtId);
       let cursor = window.start;
       while (cursor <= window.end) {
         const current = cursor;
         cursor = addDays(cursor, 1);
-        const slots = slotsForDay(watch, weekdayIndex(current), current);
+        const slots = slotsForDay(watch, weekdayIndex(current), current, group);
         slots.forEach((slot) => {
           if (!withinHours(slot, watch.open || "06:00", watch.close || "22:00")) return;
           if (rest.has(current)) return;

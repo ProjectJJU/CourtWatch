@@ -234,11 +234,49 @@ def crawl_end(config: dict, today: date, now: datetime | None = None) -> date:
     return end
 
 
+def _group_for_court(config: dict, court_id: object) -> dict | None:
+    for group in config.get("booking_groups") or []:
+        courts = {str(item) for item in group.get("courts") or []}
+        if str(court_id) in courts:
+            return group
+    return None
+
+
+def _closed_slot_rules(group: dict | None) -> list:
+    if not isinstance(group, dict):
+        return []
+    if "closed_slots" not in group or group.get("closed_slots") is None:
+        if group.get("id") == "stadium":
+            return [{"weekdays": [6], "slots": ["18:00-20:00"]}]
+        return []
+    rules = group.get("closed_slots")
+    return rules if isinstance(rules, list) else []
+
+
+def closed_slots_for(group: dict | None, weekday: int) -> set[str]:
+    closed: set[str] = set()
+    for rule in _closed_slot_rules(group):
+        if not isinstance(rule, dict):
+            continue
+        days = {int(day) for day in rule.get("weekdays") or []}
+        if weekday not in days:
+            continue
+        closed.update(str(slot) for slot in rule.get("slots") or [])
+    return closed
+
+
 def base_slots_for_day(watch: dict, weekday: int) -> list[str]:
-    has_split = "weekday_slots" in watch or "weekend_slots" in watch
+    has_days = "saturday_slots" in watch or "sunday_slots" in watch
+    has_split = has_days or "weekday_slots" in watch or "weekend_slots" in watch
     if has_split:
         if weekday < 5:
             return [str(slot) for slot in watch.get("weekday_slots") or []]
+        if has_days:
+            if weekday == 5:
+                source = watch.get("saturday_slots") if "saturday_slots" in watch else watch.get("weekend_slots")
+            else:
+                source = watch.get("sunday_slots") if "sunday_slots" in watch else watch.get("weekend_slots")
+            return [str(slot) for slot in source or []]
         return [str(slot) for slot in watch.get("weekend_slots") or []]
     weekdays = {int(day) for day in watch.get("weekdays") or []}
     if weekday not in weekdays:
@@ -256,28 +294,34 @@ def _extra_matches(extra: dict, weekday: int, day_iso: str) -> bool:
     return False
 
 
-def slots_for_day(watch: dict, weekday: int, day_iso: str | None = None) -> list[str]:
+def slots_for_day(
+    watch: dict, weekday: int, day_iso: str | None = None, group: dict | None = None
+) -> list[str]:
     base = base_slots_for_day(watch, weekday)
     extras = [item for item in watch.get("extras") or [] if isinstance(item, dict)]
     if not extras:
-        return base
-    iso = day_iso or ""
-    matched = [item for item in extras if _extra_matches(item, weekday, iso)]
-    if not matched:
-        return base
-    add_slots: list[str] = []
-    replace_slots: list[str] = []
-    replaced = False
-    for extra in matched:
-        slots = [str(slot) for slot in extra.get("slots") or []]
-        if extra.get("replace"):
-            replaced = True
-            replace_slots.extend(slots)
+        chosen = base
+    else:
+        iso = day_iso or ""
+        matched = [item for item in extras if _extra_matches(item, weekday, iso)]
+        if not matched:
+            chosen = base
         else:
-            add_slots.extend(slots)
-    if replaced:
-        return sorted(set(replace_slots + add_slots))
-    return sorted(set(base + add_slots))
+            add_slots: list[str] = []
+            replace_slots: list[str] = []
+            replaced = False
+            for extra in matched:
+                slots = [str(slot) for slot in extra.get("slots") or []]
+                if extra.get("replace"):
+                    replaced = True
+                    replace_slots.extend(slots)
+                else:
+                    add_slots.extend(slots)
+            chosen = sorted(set(replace_slots + add_slots)) if replaced else sorted(set(base + add_slots))
+    closed = closed_slots_for(group, weekday)
+    if not closed:
+        return chosen
+    return [slot for slot in chosen if slot not in closed]
 
 
 def observed_slots(
@@ -293,11 +337,12 @@ def observed_slots(
             continue
         start, end = window
         days = calendars.get(court_id, {})
+        group = _group_for_court(config, court_id)
         current = start
         while current <= end:
             weekday = current.weekday()
             iso = current.isoformat()
-            slots = slots_for_day(watch, weekday, iso)
+            slots = slots_for_day(watch, weekday, iso, group)
             info = days.get(iso)
             current += timedelta(days=1)
             if not slots or not info:
