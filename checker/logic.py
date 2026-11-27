@@ -247,9 +247,9 @@ def _closed_slot_rules(group: dict | None) -> list:
         return []
     missing = "closed_slots" not in group or group.get("closed_slots") is None
     rules = group.get("closed_slots")
-    mistaken = _single_closed_slot(rules, 6, "18:00-20:00")
-    if group.get("id") == "stadium" and (missing or mistaken):
-        return [{"weekdays": [6], "slots": ["20:00-22:00"]}]
+    legacy = _single_closed_slot(rules, 6, "18:00-20:00") or _single_closed_slot(rules, 6, "20:00-22:00")
+    if group.get("id") == "stadium" and (missing or legacy):
+        return [{"weekdays": [6], "slots": ["18:00-20:00", "20:00-22:00"]}]
     if missing:
         return []
     return rules if isinstance(rules, list) else []

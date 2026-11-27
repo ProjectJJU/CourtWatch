@@ -157,7 +157,7 @@ const weekend = check.openKeys(
 );
 assert.strictEqual(weekend.includes("73|2026-11-21|18:00-20:00"), true);
 assert.strictEqual(weekend.includes("73|2026-11-21|20:00-22:00"), true);
-assert.strictEqual(weekend.includes("73|2026-11-22|18:00-20:00"), true);
+assert.strictEqual(weekend.includes("73|2026-11-22|18:00-20:00"), false);
 assert.strictEqual(weekend.includes("73|2026-11-22|20:00-22:00"), false);
 assert.strictEqual(weekend.includes("47|2026-11-21|18:00-20:00"), true);
 assert.strictEqual(weekend.includes("47|2026-11-22|20:00-22:00"), true);

@@ -292,7 +292,7 @@ class CalendarTests(unittest.TestCase):
                     "weekday_slots": [],
                     "weekend_slots": ["18:00-20:00", "20:00-22:00"],
                     "extras": [
-                        {"weekdays": [6], "dates": [], "slots": ["20:00-22:00"], "replace": False},
+                        {"weekdays": [6], "dates": [], "slots": ["18:00-20:00", "20:00-22:00"], "replace": False},
                     ],
                 },
                 {
@@ -313,7 +313,7 @@ class CalendarTests(unittest.TestCase):
         observed = observed_slots(config, calendars, saturday)
         self.assertTrue(observed["73|2026-11-21|18:00-20:00"])
         self.assertTrue(observed["73|2026-11-21|20:00-22:00"])
-        self.assertTrue(observed["73|2026-11-22|18:00-20:00"])
+        self.assertNotIn("73|2026-11-22|18:00-20:00", observed)
         self.assertNotIn("73|2026-11-22|20:00-22:00", observed)
         self.assertTrue(observed["47|2026-11-22|18:00-20:00"])
         self.assertNotIn("47|2026-11-21|20:00-22:00", observed)
@@ -354,7 +354,7 @@ class CalendarTests(unittest.TestCase):
                     "courts": [73],
                     "after_days": 0,
                     "days": 1,
-                    "closed_slots": [{"weekdays": [6], "slots": ["18:00-20:00"]}],
+                    "closed_slots": [{"weekdays": [6], "slots": ["20:00-22:00"]}],
                 }
             ],
             "watches": [
@@ -370,7 +370,7 @@ class CalendarTests(unittest.TestCase):
             ],
         }
         observed = observed_slots(config, {"73": _open_days(sunday, sunday)}, sunday)
-        self.assertTrue(observed["73|2026-11-22|18:00-20:00"])
+        self.assertNotIn("73|2026-11-22|18:00-20:00", observed)
         self.assertNotIn("73|2026-11-22|20:00-22:00", observed)
 
     def test_extra_slots_add_and_replace(self):
