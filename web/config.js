@@ -7,7 +7,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
   const COURT_URL = "https://www.yssisul.or.kr/rent/#/{id}/rent/step1";
-  const STADIUM_CLOSED_SLOTS = [{ weekdays: [6], slots: ["18:00-20:00"] }];
+  const STADIUM_CLOSED_SLOTS = [{ weekdays: [6], slots: ["20:00-22:00"] }];
 
   function parseScalar(raw) {
     const value = String(raw).trim();
@@ -215,10 +215,19 @@
     return [...new Set((list || []).map(String))].sort();
   }
 
+  function isSingleClosedSlot(raw, weekday, slot) {
+    if (!Array.isArray(raw) || raw.length !== 1) return false;
+    const rule = raw[0] || {};
+    const days = (rule.weekdays || []).map(Number).join();
+    const slots = (rule.slots || []).map(String).join();
+    return days === String(weekday) && slots === slot;
+  }
+
   function normalizeClosedSlots(group) {
     const raw = group && group.closed_slots;
-    if (raw == null) {
-      return group && group.id === "stadium" ? STADIUM_CLOSED_SLOTS.map(copyClosedRule) : [];
+    const stadium = Boolean(group && group.id === "stadium");
+    if (raw == null || (stadium && isSingleClosedSlot(raw, 6, "18:00-20:00"))) {
+      return stadium ? STADIUM_CLOSED_SLOTS.map(copyClosedRule) : [];
     }
     if (!Array.isArray(raw)) return [];
     return raw

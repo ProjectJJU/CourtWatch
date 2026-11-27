@@ -245,12 +245,22 @@ def _group_for_court(config: dict, court_id: object) -> dict | None:
 def _closed_slot_rules(group: dict | None) -> list:
     if not isinstance(group, dict):
         return []
-    if "closed_slots" not in group or group.get("closed_slots") is None:
-        if group.get("id") == "stadium":
-            return [{"weekdays": [6], "slots": ["18:00-20:00"]}]
-        return []
+    missing = "closed_slots" not in group or group.get("closed_slots") is None
     rules = group.get("closed_slots")
+    mistaken = _single_closed_slot(rules, 6, "18:00-20:00")
+    if group.get("id") == "stadium" and (missing or mistaken):
+        return [{"weekdays": [6], "slots": ["20:00-22:00"]}]
+    if missing:
+        return []
     return rules if isinstance(rules, list) else []
+
+
+def _single_closed_slot(rules: object, weekday: int, slot: str) -> bool:
+    if not isinstance(rules, list) or len(rules) != 1 or not isinstance(rules[0], dict):
+        return False
+    days = [int(day) for day in rules[0].get("weekdays") or []]
+    slots = [str(item) for item in rules[0].get("slots") or []]
+    return days == [weekday] and slots == [slot]
 
 
 def closed_slots_for(group: dict | None, weekday: int) -> set[str]:

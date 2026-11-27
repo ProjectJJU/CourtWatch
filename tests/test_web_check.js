@@ -136,7 +136,7 @@ const weekend = check.openKeys(
         close: "22:00",
         weekday_slots: [],
         weekend_slots: ["18:00-20:00", "20:00-22:00"],
-        extras: [{ weekdays: [6], slots: ["18:00-20:00"], replace: false }],
+        extras: [{ weekdays: [6], slots: ["20:00-22:00"], replace: false }],
       },
       {
         id: 47,
@@ -157,8 +157,8 @@ const weekend = check.openKeys(
 );
 assert.strictEqual(weekend.includes("73|2026-11-21|18:00-20:00"), true);
 assert.strictEqual(weekend.includes("73|2026-11-21|20:00-22:00"), true);
-assert.strictEqual(weekend.includes("73|2026-11-22|18:00-20:00"), false);
-assert.strictEqual(weekend.includes("73|2026-11-22|20:00-22:00"), true);
+assert.strictEqual(weekend.includes("73|2026-11-22|18:00-20:00"), true);
+assert.strictEqual(weekend.includes("73|2026-11-22|20:00-22:00"), false);
 assert.strictEqual(weekend.includes("47|2026-11-21|18:00-20:00"), true);
 assert.strictEqual(weekend.includes("47|2026-11-22|20:00-22:00"), true);
 assert.strictEqual(weekend.includes("47|2026-11-22|18:00-20:00"), false);

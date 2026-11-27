@@ -145,8 +145,13 @@
 
   function closedSlotRules(group) {
     if (!group) return [];
-    if (group.closed_slots == null && group.id === "stadium") {
-      return [{ weekdays: [6], slots: ["18:00-20:00"] }];
+    const missing = group.closed_slots == null;
+    const rules = group.closed_slots;
+    const mistaken = Array.isArray(rules) && rules.length === 1
+      && (rules[0].weekdays || []).map(Number).join() === "6"
+      && (rules[0].slots || []).map(String).join() === "18:00-20:00";
+    if (group.id === "stadium" && (missing || mistaken)) {
+      return [{ weekdays: [6], slots: ["20:00-22:00"] }];
     }
     return Array.isArray(group.closed_slots) ? group.closed_slots : [];
   }
