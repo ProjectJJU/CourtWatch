@@ -234,17 +234,32 @@ async function saveRepo() {
     say("먼저 로그인하세요.");
     return;
   }
-  state.config.booking_groups = cfgApi.normalizeGroups(state.config.booking_groups);
-  state.config.watches = (state.config.watches || []).map((watch) => {
-    const next = cfgApi.normalizeWatch(watch);
-    next.extras = cfgApi.pruneEmptyExtras(next.extras);
-    return next;
-  });
   applyGroupHoursToAll();
-  await db.collection("courtwatch").doc("config").set(state.config);
+  const payload = cfgApi.prepareConfigForSave(state.config);
+  const missingRelease = (payload.booking_groups || []).some(
+    (group) => !Object.prototype.hasOwnProperty.call(group, "release")
+  );
+  if (missingRelease) {
+    say("저장 준비에 실패했습니다. 페이지를 새로고침한 뒤 다시 저장하세요.");
+    return;
+  }
+  await db.collection("courtwatch").doc("config").set(payload);
+  const saved = await db.collection("courtwatch").doc("config").get();
+  const groups = ((saved.data() || {}).booking_groups || []).map((group) => ({
+    id: group.id,
+    release: group.release,
+  }));
+  const lost = groups.some((group) => group.release === undefined);
+  if (lost) {
+    say("저장됐지만 release가 비었습니다. 다시 저장하거나 콘솔로 확인하세요.");
+    console.warn("saved booking_groups release", groups);
+  }
+  state.config = payload;
+  state.config.booking_groups = cfgApi.normalizeGroups(state.config.booking_groups);
+  state.config.watches = (state.config.watches || []).map(cfgApi.normalizeWatch);
   closeEditors();
   render();
-  say("저장했습니다. 다음 검사부터 적용됩니다.");
+  say(lost ? "저장 확인에 실패했습니다." : "저장했습니다. 다음 검사부터 적용됩니다.");
 }
 
 function applyGroupHoursToAll() {
@@ -877,7 +892,7 @@ function renderGroupDetail() {
     releaseInput.type = "time";
     releaseInput.value = group.release || "";
     releaseInput.addEventListener("change", () => {
-      group.release = releaseInput.value || "";
+      group.release = cfgApi.normalizeRelease(releaseInput.value || "");
       render();
     });
     releaseField.append(releaseInput);

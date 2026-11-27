@@ -133,11 +133,32 @@
     if (value === undefined || value === null) return "09:00";
     const text = String(value).trim();
     if (!text) return "";
-    if (!/^\d{2}:\d{2}$/.test(text)) return "09:00";
-    const hour = Number(text.slice(0, 2));
-    const minute = Number(text.slice(3, 5));
+    const match = /^(\d{2}):(\d{2})(?::\d{2})?$/.exec(text);
+    if (!match) return "09:00";
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
     if (hour > 23 || minute > 59) return "09:00";
-    return text;
+    return `${match[1]}:${match[2]}`;
+  }
+
+  function prepareConfigForSave(config) {
+    const next = {
+      timezone: config.timezone || "Asia/Seoul",
+      lookahead_days: 35,
+      alerts_enabled: config.alerts_enabled !== false,
+      sleep: {
+        start: (config.sleep && config.sleep.start) || "02:00",
+        end: (config.sleep && config.sleep.end) || "02:00",
+      },
+      presets: Array.isArray(config.presets) ? config.presets : [],
+      booking_groups: normalizeGroups(config.booking_groups),
+      watches: (config.watches || []).map((watch) => {
+        const normalized = normalizeWatch(watch);
+        normalized.extras = pruneEmptyExtras(normalized.extras);
+        return normalized;
+      }),
+    };
+    return JSON.parse(JSON.stringify(next));
   }
 
   function defaultGroups() {
@@ -387,6 +408,8 @@
     normalizeWatch,
     normalizeExtra,
     pruneEmptyExtras,
+    normalizeRelease,
+    prepareConfigForSave,
     formatWeekdays,
     hmToMinutes,
   };

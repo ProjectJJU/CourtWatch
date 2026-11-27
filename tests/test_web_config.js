@@ -36,6 +36,13 @@ const blank = configApi.normalizeGroups([
   { id: "x", courts: [1], after_days: 0, days: 1, release: "" },
 ]);
 assert.strictEqual(blank[0].release, "");
+assert.strictEqual(configApi.normalizeRelease("09:00:00"), "09:00");
+const prepared = configApi.prepareConfigForSave({
+  booking_groups: [{ id: "stadium", courts: [73], after_days: 2, days: 29 }],
+  watches: [{ id: 73, name: "C", url: "https://example.test/73" }],
+});
+assert.strictEqual(prepared.booking_groups[0].release, "09:00");
+assert.strictEqual(Object.prototype.hasOwnProperty.call(prepared.booking_groups[0], "release"), true);
 
 assert.deepStrictEqual(configApi.menuSlots("08:00", "22:00").slice(0, 2), ["08:00-10:00", "10:00-12:00"]);
 assert.strictEqual(configApi.parseCourtAddress("73").id, 73);

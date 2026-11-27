@@ -124,7 +124,21 @@ def run() -> int:
         if store is None:
             save_config(CONFIG_PATH, config)
         else:
-            store.save_config(config)
+            # Reload before write so a concurrent UI save (e.g. release) is not wiped.
+            latest = store.load_config()
+            if latest is None:
+                store.save_config(config)
+            else:
+                names = {
+                    str(watch.get("id")): watch.get("name")
+                    for watch in config.get("watches") or []
+                    if watch.get("name")
+                }
+                for watch in latest.get("watches") or []:
+                    name = names.get(str(watch.get("id")))
+                    if name:
+                        watch["name"] = name
+                store.save_config(latest)
     print(
         f"checked={len(enabled)} open={len(state.get('open_now') or [])} "
         f"muted={str(muted).lower()} exit={exit_code}"
