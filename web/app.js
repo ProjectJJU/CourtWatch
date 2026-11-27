@@ -656,8 +656,22 @@ function formatMonthDay(day) {
 }
 
 function sleepLabel(sleep) {
-  if (!sleep || !sleep.start || sleep.start === sleep.end) return "없음";
+  if (sleepIsOff(sleep)) return "없음";
   return `${sleep.start} – ${sleep.end}`;
+}
+
+function sleepIsOff(sleep) {
+  return !sleep || !sleep.start || sleep.start === sleep.end;
+}
+
+function openSleepDraft() {
+  const sleep = (state.config && state.config.sleep) || {};
+  const off = sleepIsOff(sleep);
+  state.sleepDraft = {
+    mode: off ? "off" : "range",
+    start: off ? "02:00" : sleep.start,
+    end: off ? "06:00" : sleep.end,
+  };
 }
 
 function renderGeneral() {
@@ -665,7 +679,6 @@ function renderGeneral() {
   if (!root || !state.config) return;
   root.replaceChildren();
   const config = state.config;
-  const on = config.alerts_enabled !== false;
   const sleep = config.sleep || {};
 
   const head = document.createElement("div");
@@ -683,6 +696,7 @@ function renderGeneral() {
   editButton.textContent = state.editingGeneral ? "닫기" : "수정";
   editButton.addEventListener("click", () => {
     state.editingGeneral = !state.editingGeneral;
+    if (state.editingGeneral) openSleepDraft();
     render();
   });
   head.append(titleBox, editButton);
@@ -691,26 +705,32 @@ function renderGeneral() {
   if (!state.editingGeneral) {
     const info = document.createElement("div");
     info.className = "info-grid";
-    info.append(
-      infoCard("알림", on ? "켜짐" : "꺼짐"),
-      infoCard("수면", sleepLabel(sleep), true)
-    );
+    info.append(infoCard("수면", sleepLabel(sleep), true));
     root.append(info);
     return;
   }
 
-  const alertRow = document.createElement("div");
-  alertRow.className = "row";
-  const alertButton = document.createElement("button");
-  alertButton.type = "button";
-  alertButton.className = "toggle" + (on ? " on" : "");
-  alertButton.textContent = on ? "알림 켜짐" : "알림 꺼짐";
-  alertButton.addEventListener("click", () => {
-    state.config.alerts_enabled = state.config.alerts_enabled === false;
-    render();
-  });
-  alertRow.append(alertButton);
-  root.append(alertRow);
+  if (!state.sleepDraft) openSleepDraft();
+  const draft = state.sleepDraft;
+  const sleepLabelText = document.createElement("p");
+  sleepLabelText.className = "group-label";
+  sleepLabelText.textContent = "수면";
+  const modeRow = document.createElement("div");
+  modeRow.className = "sleep-mode";
+  modeRow.append(
+    chip("수면 없음", draft.mode === "off", () => {
+      state.sleepDraft.mode = "off";
+      state.config.sleep = { start: "00:00", end: "00:00" };
+      render();
+    }),
+    chip("시간 지정", draft.mode === "range", () => {
+      state.sleepDraft.mode = "range";
+      render();
+    })
+  );
+  root.append(sleepLabelText, modeRow);
+
+  if (draft.mode !== "range") return;
 
   const timeRow = document.createElement("div");
   timeRow.className = "time-row";
@@ -719,28 +739,40 @@ function renderGeneral() {
   const startInput = document.createElement("input");
   startInput.type = "time";
   startInput.id = "sleep-start";
-  const same = sleep.start && sleep.start === sleep.end;
-  startInput.value = same ? "" : sleep.start || "";
+  startInput.value = draft.start || "";
+  startInput.addEventListener("input", () => {
+    state.sleepDraft.start = startInput.value;
+  });
   startField.append(startInput);
   const endField = document.createElement("label");
   endField.append(document.createTextNode("수면 끝"));
   const endInput = document.createElement("input");
   endInput.type = "time";
   endInput.id = "sleep-end";
-  endInput.value = same ? "" : sleep.end || "";
+  endInput.value = draft.end || "";
+  endInput.addEventListener("input", () => {
+    state.sleepDraft.end = endInput.value;
+  });
   endField.append(endInput);
   const apply = document.createElement("button");
   apply.type = "button";
   apply.className = "ghost";
   apply.textContent = "적용";
   apply.addEventListener("click", () => {
-    let start = startInput.value;
-    let end = endInput.value;
-    if (!start && !end) {
-      start = "00:00";
-      end = "00:00";
+    const start = startInput.value;
+    const end = endInput.value;
+    if (!start || !end) {
+      say("수면 시작과 끝을 고르세요.");
+      return;
+    }
+    if (start === end) {
+      say("시작과 끝을 다르게 고르세요.");
+      return;
     }
     state.config.sleep = { start, end };
+    state.sleepDraft.start = start;
+    state.sleepDraft.end = end;
+    say("");
     render();
   });
   timeRow.append(startField, endField, apply);

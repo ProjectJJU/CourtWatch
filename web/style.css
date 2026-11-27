@@ -454,7 +454,7 @@ h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 6px; }
   gap: 8px;
 }
 
-.chips button, .row button, .time-row button, .ghost, .secondary, .primary, .toggle {
+.chips button, .sleep-mode button, .row button, .time-row button, .ghost, .secondary, .primary, .toggle {
   min-height: 42px;
   border: 1px solid var(--line);
   background: #fff;
@@ -465,7 +465,15 @@ h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 6px; }
   color: inherit;
 }
 
-.chips button { width: 100%; }
+.chips button, .sleep-mode button { width: 100%; }
+
+.sleep-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-width: 480px;
+  margin-bottom: 8px;
+}
 
 button.active, button.primary, button.toggle.on {
   background: var(--green);
