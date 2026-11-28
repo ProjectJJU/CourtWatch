@@ -12,6 +12,7 @@ _LINK_RE = re.compile(
 )
 
 FAILURE_TEXT = "예약 화면을 읽지 못했습니다. 다음 검사에서 다시 확인합니다."
+ACCUMULATED_FAILURE_TEXT = "예약코트 업데이트 실패가 누적되었습니다"
 TEST_TEXT = "연결 확인"
 
 

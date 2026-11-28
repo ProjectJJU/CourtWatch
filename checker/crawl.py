@@ -137,41 +137,56 @@ def _read_court(watch: dict, today: date, fetcher, now=None) -> tuple[str, dict,
         rest = fetcher(f"{API}/restday?facility={court_id}&month={month}")
         reservations.extend(_as_list(rent))
         rests.extend(_as_list(rest))
-    facility = fetcher(f"{API}/facility/{court_id}")
     name = ""
+    try:
+        facility = fetcher(f"{API}/facility/{court_id}")
+    except Exception:
+        facility = None
     if isinstance(facility, dict):
         name = " ".join(str(facility.get("name") or "").split())
     return court_id, calendar_days(start, end, reservations, rests), name
 
 
-def crawl_courts(config: dict, today: date, fetcher=None, now=None) -> tuple[dict[str, dict], bool]:
+def _load_court(watch: dict, today: date, fetcher, now=None) -> tuple[str, dict, str, str]:
+    court_id = str(watch["id"])
+    for _attempt in range(2):
+        try:
+            loaded_id, days, name = _read_court(watch, today, fetcher, now)
+            return loaded_id, days, name, ""
+        except Exception:
+            continue
+    return court_id, {}, "", court_id
+
+
+def crawl_courts(config: dict, today: date, fetcher=None, now=None) -> tuple[dict[str, dict], bool, list[str]]:
     watches = [watch for watch in config.get("watches", []) if watch.get("enabled", True)]
     if not watches:
-        return {}, False
+        return {}, False, []
     load = fetcher or _fetch_json
     groups = config.get("booking_groups") or []
-    jobs = []
-    for watch in watches:
-        jobs.append({**watch, "_groups": groups})
-    calendars: dict[str, dict] = {}
-    renamed = False
+    jobs = [{**watch, "_groups": groups} for watch in watches]
+    loaded: dict[str, tuple[dict, str, str]] = {}
     workers = min(len(jobs), 8)
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = [pool.submit(_read_court, watch, today, load, now) for watch in jobs]
-        try:
-            for future in as_completed(futures):
-                court_id, days, name = future.result()
-                if not days:
-                    continue
-                calendars[court_id] = days
-                watch = next(item for item in watches if str(item["id"]) == court_id)
-                if name and watch.get("name") != name:
-                    watch["name"] = name
-                    renamed = True
-        except Exception as exc:
-            for future in futures:
-                future.cancel()
-            if isinstance(exc, CrawlError):
-                raise
-            raise CrawlError("reservation list was not readable") from exc
-    return calendars, renamed
+        futures = {
+            pool.submit(_load_court, watch, today, load, now): str(watch["id"]) for watch in jobs
+        }
+        for future in as_completed(futures):
+            court_id, days, name, error = future.result()
+            loaded[court_id] = (days, name, error)
+    calendars: dict[str, dict] = {}
+    failed: list[str] = []
+    renamed = False
+    for watch in watches:
+        court_id = str(watch["id"])
+        days, name, error = loaded.get(court_id, ({}, "", court_id))
+        if error:
+            failed.append(court_id)
+            continue
+        if not days:
+            continue
+        calendars[court_id] = days
+        if name and watch.get("name") != name:
+            watch["name"] = name
+            renamed = True
+    return calendars, renamed, failed

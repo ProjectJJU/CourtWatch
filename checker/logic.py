@@ -14,6 +14,8 @@ HM_RE = re.compile(r"^(\d{2}):(\d{2})$")
 
 
 ALERT_HISTORY_LIMIT = 10
+ERROR_HISTORY_LIMIT = 50
+FAILURE_ALERT_AFTER = 5
 
 
 def fresh_state() -> dict:
@@ -24,26 +26,117 @@ def fresh_state() -> dict:
         "slots": {},
         "pending": [],
         "failure_pending": False,
-        "failure_notified": False,
+        "failure_streaks": {},
+        "failure_notified_courts": [],
         "last_check": None,
         "last_error": None,
         "last_alerts": [],
         "alert_history": [],
+        "error_history": [],
         "open_now": [],
     }
+
+
+def _alert_items(state: dict) -> list:
+    kept = []
+    for item in state.get("alert_history") or []:
+        if isinstance(item, dict) and item.get("keys"):
+            kept.append(item)
+    return kept
+
+
+def _error_items(state: dict) -> list:
+    kept = []
+    for item in state.get("error_history") or []:
+        if isinstance(item, dict) and str(item.get("error") or "").strip():
+            kept.append(item)
+    return kept
+
+
+def separate_histories(state: dict) -> None:
+    alerts = []
+    errors = _error_items(state)
+    for item in state.get("alert_history") or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("keys"):
+            alerts.append(item)
+            continue
+        text = str(item.get("error") or "").strip()
+        if text:
+            errors.append({"at": str(item.get("at") or ""), "error": text})
+    state["alert_history"] = alerts[:ALERT_HISTORY_LIMIT]
+    state["error_history"] = errors[:ERROR_HISTORY_LIMIT]
 
 
 def record_alert_history(state: dict, at: str) -> None:
     keys = [str(key) for key in (state.get("last_alerts") or []) if key]
     if not keys:
         return
-    history = [
-        item
-        for item in (state.get("alert_history") or [])
-        if isinstance(item, dict) and item.get("keys")
-    ]
+    history = _alert_items(state)
     history.insert(0, {"at": str(at or ""), "keys": keys})
     state["alert_history"] = history[:ALERT_HISTORY_LIMIT]
+
+
+_NUMBERED_COURT = re.compile(r"^(?P<head>.*?)\((?P<num>[^)]*번)\)")
+
+
+def failure_history_message(names: list[str]) -> str:
+    groups: list[tuple[str, list[str]]] = []
+    index: dict[str, int] = {}
+    plain: list[str] = []
+    for raw in names:
+        name = visible_text(raw).strip()
+        if not name:
+            continue
+        match = _NUMBERED_COURT.match(name)
+        if not match:
+            plain.append(name)
+            continue
+        head = match.group("head")
+        number = match.group("num")
+        if head not in index:
+            index[head] = len(groups)
+            groups.append((head, []))
+        bucket = groups[index[head]][1]
+        if number not in bucket:
+            bucket.append(number)
+    parts = [f"{head}({', '.join(numbers)})" for head, numbers in groups]
+    parts.extend(plain)
+    if not parts:
+        return "예약 화면을 읽지 못했습니다."
+    label = ", ".join(parts)
+    return f"{label}{_object_particle(label)} 읽지 못했습니다."
+
+
+def _object_particle(text: str) -> str:
+    last = text[-1:] if text else ""
+    code = ord(last) if last else 0
+    if 0xAC00 <= code <= 0xD7A3 and (code - 0xAC00) % 28 == 0:
+        return "를"
+    return "을"
+
+
+def retain_unreadable_open(state: dict, previous_open: list, failed_ids: list) -> None:
+    failed = {str(item) for item in failed_ids}
+    if not failed:
+        return
+    kept = []
+    for key in previous_open:
+        text = str(key)
+        if text.split("|", 1)[0] in failed:
+            kept.append(text)
+    current = [str(key) for key in state.get("open_now") or []]
+    state["open_now"] = sorted(set(current + kept))
+
+
+def record_failure_history(state: dict, at: str, message: str) -> None:
+    text = str(message or "").strip()
+    if not text:
+        return
+    history = _error_items(state)
+    history.insert(0, {"at": str(at or ""), "error": text})
+    state["error_history"] = history[:ERROR_HISTORY_LIMIT]
 
 
 def needs_state_save(previous: dict, current: dict) -> bool:
@@ -456,23 +549,62 @@ def acknowledge(state: dict, keys: list[str]) -> None:
     state["pending"] = sorted(pending)
 
 
+def _court_streaks(state: dict) -> dict[str, int]:
+    streaks = {}
+    for court_id, count in (state.get("failure_streaks") or {}).items():
+        try:
+            streaks[str(court_id)] = int(count)
+        except (TypeError, ValueError):
+            continue
+    return streaks
+
+
+def _notified_courts(state: dict) -> set[str]:
+    return {str(court_id) for court_id in (state.get("failure_notified_courts") or [])}
+
+
+def note_court_results(state: dict, failed_ids: list, succeeded_ids: list) -> None:
+    streaks = _court_streaks(state)
+    notified = _notified_courts(state)
+    for court_id in succeeded_ids:
+        key = str(court_id)
+        streaks.pop(key, None)
+        notified.discard(key)
+    for court_id in failed_ids:
+        key = str(court_id)
+        streaks[key] = streaks.get(key, 0) + 1
+    state["failure_streaks"] = streaks
+    state["failure_notified_courts"] = sorted(notified)
+
+
 def failure_should_send(state: dict, muted: bool) -> bool:
+    notified = _notified_courts(state)
+    ready = [
+        court_id
+        for court_id, count in _court_streaks(state).items()
+        if count >= FAILURE_ALERT_AFTER and court_id not in notified
+    ]
+    if not ready:
+        return False
     if muted:
         state["failure_pending"] = True
-        return False
-    if state.get("failure_notified"):
         return False
     return True
 
 
 def acknowledge_failure(state: dict) -> None:
-    state["failure_notified"] = True
+    notified = _notified_courts(state)
+    for court_id, count in _court_streaks(state).items():
+        if count >= FAILURE_ALERT_AFTER:
+            notified.add(court_id)
+    state["failure_notified_courts"] = sorted(notified)
     state["failure_pending"] = False
 
 
 def note_recovery(state: dict) -> None:
     state["failure_pending"] = False
-    state["failure_notified"] = False
+    state["failure_streaks"] = {}
+    state["failure_notified_courts"] = []
     state["last_error"] = None
 
 

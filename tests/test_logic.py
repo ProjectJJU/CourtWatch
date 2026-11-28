@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from checker.config_store import load_config, save_config
+from checker.config_store import ensure_state, load_config, save_config
 from checker.logic import (
     acknowledge,
     booking_window,
@@ -17,11 +17,15 @@ from checker.logic import (
     fresh_state,
     needs_state_save,
     in_sleep,
+    failure_history_message,
     is_status_command,
+    note_court_results,
     observed_slots,
     overlaps,
     parse_event_titles,
     record_alert_history,
+    record_failure_history,
+    retain_unreadable_open,
     render_alert,
     render_open_now,
     within_hours,
@@ -196,17 +200,90 @@ class AlertTests(unittest.TestCase):
         self.assertNotIn("http", text)
         self.assertNotIn("example.test", text)
 
-    def test_failure_is_once_until_recovery(self):
+    def test_failure_notifies_after_five_consecutive_on_same_court(self):
         state = fresh_state()
+        from checker.logic import acknowledge_failure, note_recovery
+
+        for _ in range(4):
+            note_court_results(state, ["66"], ["47"])
+            self.assertFalse(failure_should_send(state, False))
+        self.assertEqual(state["failure_streaks"], {"66": 4})
+        note_court_results(state, ["66"], ["47"])
+        self.assertEqual(state["failure_streaks"]["66"], 5)
+        self.assertNotIn("47", state["failure_streaks"])
         self.assertFalse(failure_should_send(state, True))
         self.assertTrue(state["failure_pending"])
         self.assertTrue(failure_should_send(state, False))
-        from checker.logic import acknowledge_failure, note_recovery
-
         acknowledge_failure(state)
+        note_court_results(state, ["66"], ["47"])
+        self.assertFalse(failure_should_send(state, False))
+        note_court_results(state, ["47"], ["66"])
+        self.assertNotIn("66", state["failure_streaks"])
+        self.assertEqual(state["failure_streaks"], {"47": 1})
         self.assertFalse(failure_should_send(state, False))
         note_recovery(state)
+        self.assertEqual(state["failure_streaks"], {})
+        for _ in range(5):
+            note_court_results(state, ["66"], [])
         self.assertTrue(failure_should_send(state, False))
+
+    def test_failure_history_groups_court_numbers(self):
+        text = failure_history_message(
+            [
+                "테니스장(7번)(하드코트)",
+                "테니스장(8번)(하드코트)",
+                "실내테니스장 시민C코트",
+            ]
+        )
+        self.assertEqual(text, "테니스장(7번, 8번), 실내테니스장 시민C코트를 읽지 못했습니다.")
+        self.assertEqual(
+            failure_history_message(["테니스장(7번)(하드코트)"]),
+            "테니스장(7번)을 읽지 못했습니다.",
+        )
+        state = fresh_state()
+        state["open_now"] = ["47|2026-11-24|20:00-22:00"]
+        previous = ["66|2026-11-24|20:00-22:00", "47|2026-11-24|20:00-22:00"]
+        retain_unreadable_open(state, previous, ["66"])
+        self.assertEqual(
+            state["open_now"],
+            ["47|2026-11-24|20:00-22:00", "66|2026-11-24|20:00-22:00"],
+        )
+
+    def test_failure_history_keeps_each_attempt(self):
+        state = fresh_state()
+        message = "예약 화면을 읽지 못했습니다."
+        record_failure_history(state, "2026-11-14 10:00:00", message)
+        record_failure_history(state, "2026-11-14 10:01:00", message)
+        self.assertEqual(state["alert_history"], [])
+        self.assertEqual(len(state["error_history"]), 2)
+        self.assertEqual(state["error_history"][0]["at"], "2026-11-14 10:01:00")
+        self.assertEqual(state["error_history"][0]["error"], message)
+        self.assertEqual(state["error_history"][1]["error"], message)
+        state["last_alerts"] = ["73|2026-11-20|18:00-20:00"]
+        record_alert_history(state, "2026-11-14 10:02:00")
+        self.assertEqual(len(state["alert_history"]), 1)
+        self.assertEqual(len(state["error_history"]), 2)
+
+    def test_saved_error_rows_move_out_of_alert_history(self):
+        state = ensure_state(
+            {
+                "alert_history": [
+                    {"at": "2026-11-14 10:02:00", "keys": ["73|2026-11-20|18:00-20:00"]},
+                    {"at": "2026-11-14 10:01:00", "error": "테니스장(7번)을 읽지 못했습니다."},
+                ]
+            }
+        )
+        self.assertEqual(len(state["alert_history"]), 1)
+        self.assertEqual(state["alert_history"][0]["keys"], ["73|2026-11-20|18:00-20:00"])
+        self.assertEqual(state["error_history"][0]["error"], "테니스장(7번)을 읽지 못했습니다.")
+
+    def test_error_history_keeps_fifty(self):
+        state = fresh_state()
+        for index in range(55):
+            record_failure_history(state, f"2026-11-14 10:{index:02d}:00", "테니스장(7번)을 읽지 못했습니다.")
+        self.assertEqual(len(state["error_history"]), 50)
+        self.assertEqual(state["error_history"][0]["at"], "2026-11-14 10:54:00")
+        self.assertEqual(state["alert_history"], [])
 
 
 class CalendarTests(unittest.TestCase):

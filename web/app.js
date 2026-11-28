@@ -14,6 +14,7 @@ const state = {
     alarm: true,
     open: true,
     history: false,
+    errors: false,
   },
 };
 let auth = null;
@@ -589,8 +590,26 @@ function renderStatus() {
   const open = bookableKeys(current.open_now || []);
   const alerts = bookableKeys(statusAlertKeys(current));
   const history = (current.alert_history || [])
-    .map((item) => (item && Array.isArray(item.keys) ? { ...item, keys: bookableKeys(item.keys) } : item))
-    .filter((item) => item && Array.isArray(item.keys) && item.keys.length);
+    .map((item) => {
+      if (!item || typeof item !== "object" || !Array.isArray(item.keys)) return null;
+      const keys = bookableKeys(item.keys);
+      if (!keys.length) return null;
+      return { at: item.at || "", keys };
+    })
+    .filter(Boolean);
+  const errors = [];
+  const pushError = (item) => {
+    if (!item || typeof item !== "object") return;
+    const error = plain(item.error || "");
+    if (!error) return;
+    errors.push({ at: item.at || "", error });
+  };
+  (current.error_history || []).forEach(pushError);
+  (current.alert_history || []).forEach((item) => {
+    if (!item || typeof item !== "object") return;
+    if (Array.isArray(item.keys) && item.keys.length) return;
+    pushError(item);
+  });
 
   box.append(
     foldSection("alarm", "알람 · 이번 주기", String(alerts.length), (body) => {
@@ -628,6 +647,25 @@ function renderStatus() {
         when.textContent = entry.at || "시각 없음";
         card.append(when);
         card.append(renderKeyList(entry.keys || []));
+        body.append(card);
+      });
+    })
+  );
+
+  box.append(
+    foldSection("errors", "에러 기록", `${Math.min(errors.length, 50)}/50`, (body) => {
+      if (!errors.length) {
+        body.append(renderCheckLine("아직 저장된 에러 기록이 없습니다."));
+        return;
+      }
+      errors.slice(0, 50).forEach((entry) => {
+        const card = document.createElement("div");
+        card.className = "history-card error-card";
+        const when = document.createElement("p");
+        when.className = "history-at";
+        when.textContent = entry.at || "시각 없음";
+        card.append(when);
+        card.append(renderCheckLine(entry.error));
         body.append(card);
       });
     })

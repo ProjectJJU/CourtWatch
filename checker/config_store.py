@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from checker.logic import fresh_state
+from checker.logic import fresh_state, separate_histories
 
 TIME_RE = re.compile(r"^\d{2}:\d{2}(-\d{2}:\d{2})?$")
 
@@ -54,6 +54,7 @@ def ensure_state(saved: dict | None) -> dict:
     state["slots"] = dict(state.get("slots") or {})
     state["pending"] = sorted(state.get("pending") or [])
     state["open_now"] = sorted(state.get("open_now") or [])
+    separate_histories(state)
     return state
 
 
