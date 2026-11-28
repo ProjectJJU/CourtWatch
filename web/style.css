@@ -187,6 +187,20 @@ h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 6px; }
   font-size: 0.86rem;
 }
 
+.day-head {
+  margin: 12px 0 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.day-group:first-child .day-head {
+  margin-top: 0;
+}
+
+.day-group .status-list {
+  margin-top: 0;
+}
+
 .fold {
   border-top: 1px solid var(--line);
   margin-top: 8px;

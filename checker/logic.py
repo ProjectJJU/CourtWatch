@@ -632,24 +632,35 @@ def visible_text(value: object) -> str:
     return " ".join(_LINK_RE.sub("", str(value or "")).split())
 
 
-def render_alert(config: dict, keys: list[str]) -> str:
-    grouped: dict[str, list[tuple[str, str]]] = {}
+def _slot_lines(config: dict, keys: list[str]) -> list[str]:
+    by_day: dict[str, list[tuple[str, str]]] = {}
     for key in dict.fromkeys(keys):
         court_id, day, slot = split_key(key)
-        grouped.setdefault(court_id, []).append((day, slot))
-    lines = ["빈 코트", ""]
+        by_day.setdefault(day, []).append((court_id, slot))
     watches = watch_by_id(config)
-    ordered = [str(watch["id"]) for watch in config.get("watches", []) if str(watch["id"]) in grouped]
-    ordered.extend(court_id for court_id in grouped if court_id not in ordered)
-    for court_id in ordered:
-        items = grouped[court_id]
-        watch = watches.get(court_id, {})
-        lines.append(visible_text(watch.get("name")) or court_id)
-        for day, slot in sorted(items):
-            current = date.fromisoformat(day)
-            lines.append(f"{day} ({format_weekday(current)}) {slot}")
+    watch_order = [str(watch["id"]) for watch in config.get("watches", [])]
+    lines: list[str] = []
+    for day in sorted(by_day):
+        current = date.fromisoformat(day)
+        lines.append(f"{day} ({format_weekday(current)})")
+
+        def rank(item: tuple[str, str]) -> tuple[int, str]:
+            court_id, slot = item
+            try:
+                position = watch_order.index(court_id)
+            except ValueError:
+                position = len(watch_order)
+            return slot, position
+
+        for court_id, slot in sorted(by_day[day], key=rank):
+            name = visible_text(watches.get(court_id, {}).get("name")) or court_id
+            lines.append(f"{name} {slot}")
         lines.append("")
-    lines.append("먼저 예약될 수 있습니다")
+    return lines
+
+
+def render_alert(config: dict, keys: list[str]) -> str:
+    lines = ["빈 코트", "", *_slot_lines(config, keys), "먼저 예약될 수 있습니다"]
     return "\n".join(lines).strip()
 
 
@@ -693,12 +704,7 @@ def render_status(config: dict, state: dict) -> str:
         lines.append("지금 빈 슬롯 없음")
     else:
         lines.append("지금 빈 슬롯")
-        watches = watch_by_id(config)
-        for key in open_now:
-            court_id, day, slot = split_key(key)
-            name = visible_text(watches.get(court_id, {}).get("name")) or court_id
-            current = date.fromisoformat(day)
-            lines.append(f"{name} {day} ({format_weekday(current)}) {slot}")
+        lines.extend(line for line in _slot_lines(config, open_now) if line)
     return "\n".join(lines)
 
 

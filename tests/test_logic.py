@@ -193,9 +193,11 @@ class AlertTests(unittest.TestCase):
                 "73|2026-11-20|18:00-20:00",
             ],
         )
-        self.assertIn("시민C", text)
-        self.assertIn("2026-11-20 (금) 18:00-20:00", text)
-        self.assertLess(text.index("시민C"), text.index("3번"))
+        self.assertIn("2026-11-20 (금)", text)
+        self.assertIn("시민C 18:00-20:00", text)
+        self.assertLess(text.index("2026-11-20 (금)"), text.index("시민C"))
+        self.assertLess(text.index("시민C"), text.index("2026-11-21 (토)"))
+        self.assertLess(text.index("2026-11-21 (토)"), text.index("3번"))
         self.assertTrue(text.endswith("먼저 예약될 수 있습니다"))
         self.assertNotIn("http", text)
         self.assertNotIn("example.test", text)
@@ -599,7 +601,9 @@ class CalendarTests(unittest.TestCase):
             ["73|2026-11-17|20:00-22:00"],
         )
         self.assertTrue(text.startswith("지금 빈 시간"))
-        self.assertIn("2026-11-17 (화) 20:00-22:00", text)
+        self.assertIn("2026-11-17 (화)", text)
+        self.assertIn("시민C 20:00-22:00", text)
+        self.assertLess(text.index("2026-11-17 (화)"), text.index("시민C"))
         self.assertNotIn("http", text)
 
 

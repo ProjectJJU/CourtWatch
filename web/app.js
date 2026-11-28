@@ -339,15 +339,49 @@ function seoulNowHm() {
   }).format(new Date());
 }
 
-function renderCheckList(keys) {
-  const list = document.createElement("ul");
-  list.className = "status-list";
-  checkApi.describe(state.config, keys).forEach((item) => {
-    const row = document.createElement("li");
-    row.textContent = `${plain(item.name)}  ${item.day} (${item.weekday})  ${item.slot}`;
-    list.append(row);
+function watchOrder(id) {
+  const watches = (state.config && state.config.watches) || [];
+  const index = watches.findIndex((watch) => String(watch.id) === String(id));
+  return index < 0 ? watches.length : index;
+}
+
+function renderDayGroups(keys) {
+  const wrap = document.createElement("div");
+  wrap.className = "day-groups";
+  const items = checkApi.describe(state.config || {}, keys);
+  items.sort((a, b) => {
+    if (a.day !== b.day) return a.day < b.day ? -1 : 1;
+    const slotOrder = String(a.slot).localeCompare(String(b.slot));
+    if (slotOrder) return slotOrder;
+    return watchOrder(a.id) - watchOrder(b.id);
   });
-  return list;
+  let block = null;
+  items.forEach((item) => {
+    if (!block || block.dataset.day !== item.day) {
+      block = document.createElement("div");
+      block.className = "day-group";
+      block.dataset.day = item.day;
+      const head = document.createElement("p");
+      head.className = "day-head";
+      head.textContent = `${formatIsoDay(item.day)} (${item.weekday})`;
+      const list = document.createElement("ul");
+      list.className = "status-list key-list";
+      block.append(head, list);
+      wrap.append(block);
+    }
+    const row = document.createElement("li");
+    const name = document.createElement("strong");
+    name.textContent = plain(item.name) || item.id;
+    const meta = document.createElement("span");
+    meta.textContent = String(item.slot).replace("-", "–");
+    row.append(name, meta);
+    block.querySelector("ul").append(row);
+  });
+  return wrap;
+}
+
+function renderCheckList(keys) {
+  return renderDayGroups(keys);
 }
 
 function renderCheckLine(text) {
@@ -515,18 +549,7 @@ function bookableKeys(keys) {
 }
 
 function renderKeyList(keys) {
-  const list = document.createElement("ul");
-  list.className = "status-list key-list";
-  checkApi.describe(state.config || {}, bookableKeys(keys)).forEach((item) => {
-    const row = document.createElement("li");
-    const name = document.createElement("strong");
-    name.textContent = plain(item.name) || item.id;
-    const meta = document.createElement("span");
-    meta.textContent = `${formatIsoDay(item.day)} (${item.weekday})  ${String(item.slot).replace("-", "–")}`;
-    row.append(name, meta);
-    list.append(row);
-  });
-  return list;
+  return renderDayGroups(bookableKeys(keys));
 }
 
 function foldSection(key, title, badge, buildBody) {
